@@ -1,0 +1,101 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="framenion.FissuresFilter"
+        xmlns:src="clr-namespace:framenion.Src"
+        xmlns:framenion="clr-namespace:framenion"
+        x:DataType="framenion:FissuresFilter"
+        SizeToContent="WidthAndHeight"
+        Title="Fissures Filter"
+        Background="#2C2C2C">
+  <StackPanel Margin="12" Orientation="Vertical" Spacing="8">
+    <StackPanel Orientation="Horizontal" Spacing="8">
+    </StackPanel>
+
+    <Grid RowDefinitions="*, Auto" Background="#1E1E1E">
+      <ListBox Grid.Row="0"
+               Name="FiltersList"
+               Width="760"
+               Height="280"
+               Background="#1E1E1E"
+               ItemsSource="{Binding Filters}"
+               HorizontalAlignment="Stretch">
+        <ListBox.ItemTemplate>
+          <DataTemplate x:DataType="src:FissureFilterEntry">
+            <Grid Margin="4"
+                  ColumnDefinitions="220, 140, 140, 120, Auto"
+                  ColumnSpacing="8"
+                  VerticalAlignment="Center"
+                  HorizontalAlignment="Stretch">
+              <ComboBox Grid.Column="0"
+                        HorizontalAlignment="Stretch"
+                        PlaceholderText="Mission Type"
+                        ItemsSource="{Binding $parent[Window].DataContext.MissionTypes}"
+                        SelectedItem="{Binding Type}"
+                        VerticalContentAlignment="Center"/>
+
+              <ComboBox Grid.Column="1"
+                        HorizontalAlignment="Stretch"
+                        PlaceholderText="Tier"
+                        ItemsSource="{Binding $parent[Window].DataContext.FissureTypes}"
+                        SelectedItem="{Binding RelicTier}"
+                        VerticalContentAlignment="Center"/>
+
+              <ComboBox Grid.Column="2"
+                        HorizontalAlignment="Stretch"
+                        PlaceholderText="Planet"
+                        ItemsSource="{Binding $parent[Window].DataContext.Planets}"
+                        SelectedItem="{Binding Planet}"
+                        VerticalContentAlignment="Center"/>
+
+              <ComboBox Grid.Column="3"
+                        HorizontalAlignment="Stretch"
+                        PlaceholderText="Mode"
+                        ItemsSource="{Binding $parent[Window].DataContext.Modes}"
+                        SelectedItem="{Binding Mode}"
+                        VerticalContentAlignment="Center"/>
+
+              <Button Grid.Column="4"
+                      Content="❌"
+                      Click="OnRemoveFilterClick"
+                      Background="#2C2C2C"
+                      HorizontalAlignment="Right"
+                      VerticalAlignment="Center"
+                      HorizontalContentAlignment="Center"
+                      VerticalContentAlignment="Center"/>
+            </Grid>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
+
+      <Button Grid.Row="1"
+              Name="AddButton"
+              Content="Add New"
+              Click="OnAddFilterClick"
+              Classes="filterButton"
+              HorizontalAlignment="Center"
+              Margin="0,0,0,10"/>
+    </Grid>
+
+    <Button Name="SaveButton"
+            Content="Save"
+            Click="Save_Click"
+            HorizontalAlignment="Center"
+            Classes="filterButton"/>
+  </StackPanel>
+
+  <Window.Styles>
+    <Style Selector="Button.filterButton">
+      <Setter Property="Background" Value="#4A9EFF"/>
+      <Setter Property="Foreground" Value="white"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="BorderBrush" Value="#4A4A4A"/>
+      <Setter Property="CornerRadius" Value="4"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+    <Style Selector="Button.filterButton:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#CCCCCC"/>
+      <Setter Property="Foreground" Value="white"/>
+    </Style>
+  </Window.Styles>
+</Window>

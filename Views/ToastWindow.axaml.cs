@@ -1,0 +1,154 @@
+using Avalonia;
+using Avalonia.Animation;
+using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Interactivity;
+using Avalonia.Styling;
+using Avalonia.Media;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+
+namespace framenion;
+
+public partial class ToastWindow : Window
+{
+	private static readonly object _gate = new();
+	private static readonly List<ToastWindow> _active = [];
+	private static int _defaultMargin = 12;
+	private static int _defaultSpacing = 10;
+
+	private static readonly Animation FadeIn = new() {
+		Duration = TimeSpan.FromMilliseconds(140),
+		Children =
+		{
+			new KeyFrame { Cue = new Cue(0d), Setters = { new Setter(OpacityProperty, 0d) } },
+			new KeyFrame { Cue = new Cue(1d), Setters = { new Setter(OpacityProperty, 1d) } },
+		}
+	};
+
+	private static readonly TimeSpan SlideOutDuration = TimeSpan.FromMilliseconds(220);
+
+	public ToastWindow()
+	{
+		InitializeComponent();
+
+		// Needed to support TranslateTransform animation.
+		RenderTransform ??= new TranslateTransform();
+		RenderTransformOrigin = new RelativePoint(0, 0, RelativeUnit.Relative);
+
+		PointerPressed += async (_, _) => await DismissAsync(reposition: true);
+		Closed += (_, _) => OnToastClosed(this);
+	}
+
+	public static Task ShowToastAsync(
+		Window owner,
+		string title,
+		string body,
+		TimeSpan? duration = null,
+		int margin = 12,
+		int spacing = 10)
+	{
+		duration ??= TimeSpan.FromSeconds(6);
+		_defaultMargin = margin;
+		_defaultSpacing = spacing;
+
+		var toast = new ToastWindow { Topmost = true };
+		toast.TitleText.Text = title;
+		toast.BodyText.Text = body;
+
+		try { toast.ShowActivated = false; } catch { }
+
+		lock (_gate) {
+			_active.Add(toast);
+		}
+
+		toast.Opened += async (_, _) => {
+			RepositionToasts(owner, margin, spacing);
+			await FadeIn.RunAsync(toast, default);
+		};
+
+		toast.Show(owner);
+		return AutoCloseAsync(owner, toast, duration.Value);
+	}
+
+	private static async Task AutoCloseAsync(Window owner, ToastWindow toast, TimeSpan duration)
+	{
+		await Task.Delay(duration);
+
+		if (!toast.IsVisible)
+			return;
+
+		await toast.DismissAsync(reposition: true);
+	}
+
+	private async Task DismissAsync(bool reposition)
+	{
+		if (!IsVisible)
+			return;
+
+		// Slide the *content* right, then close the window.
+		double deltaX = (Width > 0 ? Width : Bounds.Width);
+		if (deltaX <= 0) deltaX = 360;
+		deltaX += _defaultMargin;
+
+		var slideOutRight = CreateSlideOutRight(deltaX);
+
+		await slideOutRight.RunAsync(this, default);
+
+		if (IsVisible)
+			Close();
+
+		if (reposition && Owner is Window owner)
+			RepositionToasts(owner, _defaultMargin, _defaultSpacing);
+	}
+
+	private static Animation CreateSlideOutRight(double deltaX) => new() {
+		Duration = SlideOutDuration,
+		Children =
+		{
+			new KeyFrame
+			{
+				Cue = new Cue(0d),
+				Setters = { new Setter(TranslateTransform.XProperty, 0d) }
+			},
+			new KeyFrame
+			{
+				Cue = new Cue(1d),
+				Setters = { new Setter(TranslateTransform.XProperty, deltaX) }
+			},
+		}
+	};
+
+	private static void OnToastClosed(ToastWindow toast)
+	{
+		lock (_gate) {
+			_active.Remove(toast);
+		}
+	}
+
+	private static void RepositionToasts(Window owner, int margin, int spacing)
+	{
+		ToastWindow[] toasts;
+		lock (_gate) {
+			toasts = _active.Where(t => t.IsVisible).ToArray();
+		}
+
+		if (toasts.Length == 0)
+			return;
+
+		var screen = owner.Screens.ScreenFromWindow(owner) ?? owner.Screens.Primary;
+		if (screen is null)
+			return;
+
+		var wa = screen.WorkingArea;
+
+		for (int i = 0; i < toasts.Length; i++) {
+			var toast = toasts[i];
+			int x = wa.X + wa.Width - (int)Math.Ceiling(toast.Width) - margin;
+			int y = wa.Y + wa.Height - margin - (int)Math.Ceiling(toast.Height) - i * ((int)Math.Ceiling(toast.Height) + spacing);
+			toast.Position = new PixelPoint(x, y);
+		}
+	}
+}
