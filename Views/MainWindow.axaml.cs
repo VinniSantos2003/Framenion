@@ -9,6 +9,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -87,8 +88,8 @@ public partial class MainWindow : Window
 		if (root.ValueKind != JsonValueKind.Object) return;
 		GameData.mainRoot = root;
 
-		if (File.Exists(EElog)) {
-			var accountId = File.ReadLines(EElog).FirstOrDefault(line => line.Contains("AccountId: "))?.Split("AccountId: ")[1].Trim();
+		var accountId = TryReadAccountIdFromEeLog(EElog);
+		if (!string.IsNullOrWhiteSpace(accountId)) {
 			var user_resp = await GameData.httpClient.GetAsync($"http://content.warframe.com/dynamic/getProfileViewingData.php?playerId={accountId}");
 			user_resp.EnsureSuccessStatusCode();
 			var json = await JsonDocument.ParseAsync(await user_resp.Content.ReadAsStreamAsync());
@@ -203,6 +204,25 @@ public partial class MainWindow : Window
 		long baseXp = isWarframe ? 1000L : 500L;
 		return baseXp * (long)levelCap * (long)levelCap;
 	}
+
+	private static string? TryReadAccountIdFromEeLog(string eeLogPath)
+	{
+		if (!File.Exists(eeLogPath)) return null;
+		try {
+			using var fs = new FileStream(eeLogPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+			using var reader = new StreamReader(fs, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+			string? line;
+			while ((line = reader.ReadLine()) is not null) {
+				var idx = line.IndexOf("AccountId: ", StringComparison.Ordinal);
+				if (idx < 0) continue;
+				return line[(idx + "AccountId: ".Length)..].Trim();
+			}
+		} catch (IOException) {
+			// Warframe may temporarily lock or rotate the log; ignore and proceed without player name.
+		}
+		return null;
+	}
+
 
 	private async Task ExtractGameInfo()
 	{
