@@ -38,9 +38,9 @@ public partial class SettingsWindow : Window
 
 		try {
 			await settings.SaveAsync();
-			_ = ToastWindow.ShowToastAsync(this, "Settings", "Settings saved successfully.", TimeSpan.FromSeconds(5), ToastAnchor.TopRightOfOwnerWindow);
+			_ = ToastWindow.ShowToastAsync(this, "Settings", "Settings saved successfully.", TimeSpan.FromSeconds(3), ToastAnchor.TopRightOfOwnerWindow);
 		} catch (Exception ex) {
-			_ = ToastWindow.ShowToastAsync(this, "Error", $"Failed to save settings: {ex.Message}", TimeSpan.FromSeconds(5), ToastAnchor.TopRightOfOwnerWindow);
+			_ = ToastWindow.ShowToastAsync(this, "Error", $"Failed to save settings: {ex.Message}", TimeSpan.FromSeconds(3), ToastAnchor.TopRightOfOwnerWindow);
 		}
 	}
 

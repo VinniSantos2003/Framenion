@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
@@ -6,10 +7,12 @@ using framenion.Src;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -17,7 +20,7 @@ using System.Threading.Tasks;
 
 namespace framenion;
 
-public partial class MainWindow : Window
+public partial class MainWindow : Window, INotifyPropertyChanged
 {
 	public ObservableCollection<Item> displayedItems = [];
 	public ObservableCollection<VoidFissure> displayedFissures = [];
@@ -38,6 +41,18 @@ public partial class MainWindow : Window
 	private CancellationTokenSource? EElogTail;
 
 	private AppSettings appSettings = new();
+
+	private const double ItemsZoomMin = 0.50;
+	private const double ItemsZoomMax = 2.00;
+	private const double ItemsZoomStep = 0.10;
+
+	private double itemsZoom = 1.0;
+	public double ItemsTileWidth => Math.Round(200 * itemsZoom);
+	public double ItemsTileMinHeight => Math.Round(220 * itemsZoom);
+
+	public event PropertyChangedEventHandler? PropertyChanged;
+
+	private void OnPropertyChanged([CallerMemberName] string? propertyName = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
 	public MainWindow()
 	{
@@ -64,15 +79,12 @@ public partial class MainWindow : Window
 				await VoidFissure.LoadVoidFissures(this);
 				await RefreshFissuresList();
 			};
-
 			GameData.fissureUpdateTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
 			GameData.fissureUpdateTimer.Tick += (_, _) => UpdateFissureTimers();
-
 			GameData.fissureUpdateTimer.Start();
 			GameData.fissureRefreshTimer.Start();
 
-			StartEeLogTail();
-
+			StartEELogTail();
 			_ = InitializeDataInBackgroundAsync();
 		} catch (Exception ex) {
 			MessageBox.Show(this, "Error", "Failed to initialize application: " + ex.Message);
@@ -390,14 +402,14 @@ public partial class MainWindow : Window
 		}
 	}
 
-	private void StartEeLogTail()
+	private void StartEELogTail()
 	{
 		if (EElogTail is not null) return;
 		EElogTail = new CancellationTokenSource();
 		_ = TailFissureReward(EElog, EElogTail.Token);
 	}
 
-	private void StopEeLogTail()
+	private void StopEELogTail()
 	{
 		try {
 			EElogTail?.Cancel();
@@ -560,5 +572,34 @@ public partial class MainWindow : Window
 		} catch (Exception ex) {
 			MessageBox.Show(this, "Error", "Failed to open Settings: " + ex.Message);
 		}
+	}
+
+	private void SetItemsZoom(double newZoom)
+	{
+		newZoom = Math.Clamp(newZoom, ItemsZoomMin, ItemsZoomMax);
+		if (Math.Abs(newZoom - itemsZoom) < 0.0001) return;
+
+		itemsZoom = newZoom;
+
+		OnPropertyChanged(nameof(ItemsTileWidth));
+		OnPropertyChanged(nameof(ItemsTileMinHeight));
+
+		ItemsList.InvalidateMeasure();
+		ItemsList.InvalidateArrange();
+	}
+
+	private void OnItemsZoomOutClick(object? sender, RoutedEventArgs e)
+	{
+		SetItemsZoom(itemsZoom - ItemsZoomStep);
+	}
+
+	private void OnItemsZoomResetClick(object? sender, RoutedEventArgs e)
+	{
+		SetItemsZoom(1.0);
+	}
+
+	private void OnItemsZoomInClick(object? sender, RoutedEventArgs e)
+	{
+		SetItemsZoom(itemsZoom + ItemsZoomStep);
 	}
 }

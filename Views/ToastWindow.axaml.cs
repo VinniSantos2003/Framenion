@@ -70,11 +70,11 @@ public partial class ToastWindow : Window
 		}
 
 		toast.Opened += async (_, _) => {
-			RepositionToasts(owner, anchor, margin, spacing);
+			RepositionToasts(toastOwner, anchor, margin, spacing);
 			await FadeIn.RunAsync(toast, default);
 		};
 
-		toast.Show(owner);
+		toast.Show(toastOwner);
 		return AutoCloseAsync(toastOwner, toast, duration.Value);
 	}
 

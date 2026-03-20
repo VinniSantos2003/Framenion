@@ -6,6 +6,7 @@
         x:Class="framenion.MainWindow"
         xmlns:local="clr-namespace:framenion"
         xmlns:src="clr-namespace:framenion.Src"
+        x:Name="RootWindow"
         Title="Framenion - A Warframe companion app"
         Width="1280" Height="720">
 
@@ -57,7 +58,7 @@
                 <!-- Items Content -->
                 <Border Name="ItemsContent" IsVisible="True" Padding="20">
                     <Grid RowDefinitions="Auto,Auto,*">
-                        <Grid Grid.Row="0" ColumnDefinitions="*,300" Margin="0,0,0,20">
+                        <Grid Grid.Row="0" ColumnDefinitions="*,40,40,40,200" Margin="0,0,0,20">
                             <StackPanel Orientation="Horizontal" Spacing="10">
                                 <Button Name="FilterAllButton" Click="OnFilterClick"
                                         Tag="All"
@@ -140,7 +141,28 @@
                                 </Button>
                             </StackPanel>
 
-                            <TextBox Grid.Column="1"
+                            <Button Grid.Column="1"
+                Content="−"
+                Click="OnItemsZoomOutClick"
+                Classes="iconButton"
+                ToolTip.Tip="Zoom out"
+                Padding="10,6"/>
+
+        <Button Grid.Column="2"
+                Content="%"
+                Click="OnItemsZoomResetClick"
+                Classes="iconButton"
+                ToolTip.Tip="Reset zoom"
+                Padding="10,6"/>
+
+        <Button Grid.Column="3"
+                Content="+"
+                Click="OnItemsZoomInClick"
+                Classes="iconButton"
+                ToolTip.Tip="Zoom in"
+                Padding="10,6"/>
+
+                            <TextBox Grid.Column="4"
                                      Name="ItemsSearchBox"
                                      Watermark="Search items..."
                                      Padding="8,8"
@@ -157,7 +179,9 @@
                                 CornerRadius="8"
                                 BorderBrush="{DynamicResource ControlBorderBrush}"
                                 BorderThickness="1">
-                            <ScrollViewer HorizontalScrollBarVisibility="Disabled"
+
+                            <ScrollViewer Name="ItemsScrollViewer"
+                                          HorizontalScrollBarVisibility="Disabled"
                                           VerticalScrollBarVisibility="Auto">
                                 <ItemsRepeater Name="ItemsList">
                                     <ItemsRepeater.Layout>
@@ -170,8 +194,8 @@
                                                     CornerRadius="6"
                                                     Margin="8"
                                                     Padding="12"
-                                                    Width="200"
-                                                    MinHeight="220"
+                                                    Width="{Binding #RootWindow.ItemsTileWidth}"
+                                                    MinHeight="{Binding #RootWindow.ItemsTileMinHeight}"
                                                     BorderBrush="{Binding BorderColor}"
                                                     BorderThickness="2">
 
