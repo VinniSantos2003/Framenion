@@ -1,6 +1,9 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
+using Sdcb.PaddleInference;
+using Sdcb.PaddleOCR;
+using Sdcb.PaddleOCR.Models.Local;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Frozen;
@@ -33,6 +36,10 @@ public static class GameData
 	public static readonly HttpClient httpClient = new() {
 		BaseAddress = new Uri("https://browse.wf/"),
 	};
+	public static PaddleOcrAll paddleEngine = new(LocalFullModels.EnglishV3, PaddleDevice.Mkldnn()) {
+		AllowRotateDetection = false,
+		Enable180Classification = false,
+	};
 
 	public static JsonElement mainRoot = new();
 
@@ -50,6 +57,7 @@ public static class GameData
 	public static FrozenDictionary<string, JsonElement> exportFactions = FrozenDictionary<string, JsonElement>.Empty;
 	public static FrozenDictionary<string, JsonElement> exportTextIcons = FrozenDictionary<string, JsonElement>.Empty;
 	public static JsonDocument? exportMisc = null;
+	public static FrozenDictionary<string, (string, string)> warframeMarketItems = FrozenDictionary<string, (string, string)>.Empty;
 
 	public static DispatcherTimer? fissureRefreshTimer;
 	public static DispatcherTimer? fissureUpdateTimer;
@@ -111,6 +119,56 @@ public static class GameData
 
 		if (!failures.IsEmpty) {
 			MessageBox.Show(window, "Error", $"Failed to download {failures.Count} icon(s).");
+		}
+	}
+
+	public static async Task LoadWfMarketItems(Window window)
+	{
+		var cacheFile = Path.Combine(cacheDir, "wfmarketitems.json");
+		var cacheValid = File.Exists(cacheFile) && DateTime.UtcNow - File.GetLastWriteTimeUtc(cacheFile) < TimeSpan.FromHours(24);
+		JsonDocument? doc = null;
+
+		try {
+			if (cacheValid) {
+				using var stream = File.OpenRead(cacheFile);
+				doc = await JsonDocument.ParseAsync(stream);
+			} else {
+				var url = "https://api.warframe.market/v2/items/";
+				using var resp = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+				resp.EnsureSuccessStatusCode();
+				await using var stream = await resp.Content.ReadAsStreamAsync();
+
+				using (var fileStream = File.Create(cacheFile)) {
+					await stream.CopyToAsync(fileStream);
+				}
+
+				using var cacheStream = File.OpenRead(cacheFile);
+				doc = await JsonDocument.ParseAsync(cacheStream);
+			}
+
+			var builder = new Dictionary<string, (string, string)>(StringComparer.Ordinal);
+
+			if (doc.RootElement.TryGetProperty("data", out var payload) && payload.ValueKind == JsonValueKind.Array) {
+				foreach (var item in payload.EnumerateArray()) {
+					if (item.TryGetProperty("slug", out var slugProp) &&
+						item.TryGetProperty("i18n", out var i18nProp) &&
+						i18nProp.TryGetProperty("en", out var enProp) &&
+						enProp.TryGetProperty("name", out var nameProp)) {
+						var slug = slugProp.GetString() ?? "";
+						var name = nameProp.GetString() ?? "";
+						string ducats = "";
+						if (item.TryGetProperty("ducats", out var ducatsProp) && ducatsProp.ValueKind == JsonValueKind.Number)
+							ducats = ducatsProp.GetInt32().ToString();
+						builder[name] = (slug, ducats);
+					}
+				}
+			}
+
+			warframeMarketItems = builder.ToFrozenDictionary(StringComparer.Ordinal);
+		} catch (Exception ex) {
+			MessageBox.Show(window, "Error", "Failed to load Warframe Market items: " + ex.Message);
+		} finally {
+			doc?.Dispose();
 		}
 	}
 

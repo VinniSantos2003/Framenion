@@ -1,22 +1,27 @@
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using framenion.Src;
+using Sdcb.PaddleInference;
+using Sdcb.PaddleOCR;
+using Sdcb.PaddleOCR.Models.Local;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.IO.MemoryMappedFiles;
 using System.Linq;
-using System.Net.Http;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using YamlDotNet.Core.Tokens;
 
 namespace framenion;
 
@@ -33,25 +38,26 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 	private static readonly string inventoryFile = Path.Combine(GameData.appDataDir, "inventory.json");
 	private static readonly string notifiedFissuresFile = Path.Combine(GameData.appDataDir, "notified_fissures.txt");
 
-	private readonly HashSet<string> notifiedFissures = new(StringComparer.Ordinal);
+	private readonly HashSet<string> notifiedFissures = new HashSet<string>();
 
 	private IReadOnlyList<FissureAlertEntry> loadedFissureAlertList = [];
 
 	private CancellationTokenSource? searchDebounce;
-	private CancellationTokenSource? EElogTail;
+	private DispatcherTimer logPollTimer = new() { Interval = TimeSpan.FromSeconds(1) };
+	private long lastPosition = 0;
+	private bool lastWfRunning = false;
 
 	private AppSettings appSettings = new();
 
+	private double itemsZoom = 1.0;
 	private const double ItemsZoomMin = 0.50;
 	private const double ItemsZoomMax = 2.00;
 	private const double ItemsZoomStep = 0.10;
-
-	private double itemsZoom = 1.0;
+	
 	public double ItemsTileWidth => Math.Round(200 * itemsZoom);
 	public double ItemsTileMinHeight => Math.Round(220 * itemsZoom);
 
-	public event PropertyChangedEventHandler? PropertyChanged;
-
+	public new event PropertyChangedEventHandler? PropertyChanged;
 	private void OnPropertyChanged([CallerMemberName] string? propertyName = null) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
 
 	public MainWindow()
@@ -63,6 +69,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 		};
 
 		InitializeComponent(true);
+		DataContext = this;
 		ItemsList.ItemsSource = displayedItems;
 		FissuresList.ItemsSource = displayedFissures;
 	}
@@ -70,7 +77,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 	private async Task InitializeAsync()
 	{
 		try {
-			appSettings = await framenion.Src.AppSettings.LoadAsync();
+			appSettings = await AppSettings.LoadAsync();
 			await LoadNotifiedFissures();
 			loadedFissureAlertList = FissureAlertList.Load();
 
@@ -84,7 +91,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 			GameData.fissureUpdateTimer.Start();
 			GameData.fissureRefreshTimer.Start();
 
-			StartEELogTail();
+			logPollTimer.Tick += (_, _) => ReadNewLogData(EElog);
+			logPollTimer.Start();
 			_ = InitializeDataInBackgroundAsync();
 		} catch (Exception ex) {
 			MessageBox.Show(this, "Error", "Failed to initialize application: " + ex.Message);
@@ -102,6 +110,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 		string[] secondLoad = [ "ExportWarframes", "ExportRecipes", "ExportWeapons", "ExportResources", "ExportMisc", "ExportSentinels", "ExportTextIcons" ];
 		loadTasks = secondLoad.Select(f => GameData.LoadFile(this, f, GameData.cacheDir));
 		await Task.WhenAll(loadTasks);
+		await GameData.LoadWfMarketItems(this);
 
 		await Task.Run(async () => {
 			await GameData.LoadExports(this);
@@ -372,7 +381,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 			? $"{(matches[0].IsHard ? "Steel Path" : "Normal")} {matches[0].MissionType} {matches[0].Tier} ends in {matches[0].TimeRemaining}"
 			: string.Join(Environment.NewLine, matches.Select(f => $"{(f.IsHard ? "Steel Path" : "Normal")} {f.MissionType} {f.Tier} ends in {f.TimeRemaining}"));
 
-		_ = ToastWindow.ShowToastAsync(this, title, body, TimeSpan.FromSeconds(15));
+		_ = ToastWindow.ShowToastAsync(this, title, body, TimeSpan.FromSeconds(10));
 	}
 
 	private async Task LoadNotifiedFissures()
@@ -402,78 +411,70 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 		}
 	}
 
-	private void StartEELogTail()
+	private void ReadNewLogData(string logPath)
 	{
-		if (EElogTail is not null) return;
-		EElogTail = new CancellationTokenSource();
-		_ = TailFissureReward(EElog, EElogTail.Token);
-	}
+		if (!File.Exists(logPath)) return;
 
-	private void StopEELogTail()
-	{
-		try {
-			EElogTail?.Cancel();
-			EElogTail?.Dispose();
-		} catch { }
-		EElogTail = null;
-	}
-
-	private async Task TailFissureReward(string eeLogPath, CancellationToken token)
-	{
-		const string trigger = "VoidProjections: OpenVoidProjectionRewardScreenRMI";
-		long lastLength = -1;
-		DateTime lastToastUtc = DateTime.MinValue;
-		while (!token.IsCancellationRequested) {
-			try {
-				if (!IsWarframeRunning()) {
-					lastLength = -1; // reset so we re-seek correctly next time the game starts
-					await Task.Delay(1000, token);
-					continue;
+		var process = Process.GetProcessesByName("Warframe.x64").FirstOrDefault();
+		bool wfRunning = process != null;
+		if (lastWfRunning != wfRunning) {
+			lastWfRunning = wfRunning;
+			Dispatcher.UIThread.Post(() => {
+				if (wfRunning) {
+					WarframeOpened.Source = GameData.DecodeThumbnail(Path.Combine(AppContext.BaseDirectory, "assets", "check_d.png"));
+					ToolTip.SetTip(WarframeOpened, "Warframe is up and running\nReading log data.");
+				} else {
+					WarframeOpened.Source = GameData.DecodeThumbnail(Path.Combine(AppContext.BaseDirectory, "assets", "uncheck_d.png"));
+					ToolTip.SetTip(WarframeOpened, "Warframe is closed\nNot reading log data.");
 				}
-
-				if (!File.Exists(eeLogPath)) {
-					await Task.Delay(500, token);
-					continue;
-				}
-
-				using var fs = new FileStream(eeLogPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, bufferSize: 64 * 1024, options: FileOptions.SequentialScan);
-				lastLength = fs.Length;
-				fs.Seek(lastLength, SeekOrigin.Begin);
-				using var reader = new StreamReader(fs, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
-				while (!token.IsCancellationRequested) {
-					var posBefore = fs.Position;
-
-					var line = await reader.ReadLineAsync(token);
-					if (line is not null) {
-						if (line.Contains(trigger, StringComparison.Ordinal)) {
-							var now = DateTime.UtcNow;
-							if (now - lastToastUtc >= TimeSpan.FromSeconds(10)) {
-								lastToastUtc = now;
-								await Dispatcher.UIThread.InvokeAsync(() => ToastWindow.ShowToastAsync(this, "Warframe", "Void reward screen opened", TimeSpan.FromSeconds(8)));
-							}
-						}
-						continue;
-					}
-
-					var lenNow = fs.Length;
-					if (lenNow < lastLength || (lenNow == lastLength && fs.Position < posBefore)) {
-						break;
-					}
-
-					lastLength = lenNow;
-					await Task.Delay(150, token);
-				}
-			} catch (OperationCanceledException) {
-				return;
-			} catch {
-				await Task.Delay(250, token);
-			}
+			});
 		}
-	}
 
-	private static bool IsWarframeRunning()
-	{
-		return Process.GetProcessesByName("Warframe.x64.exe").Length > 0;
+		if (!wfRunning) return;
+
+		var fileInfo = new FileInfo(logPath);
+		long fileLength = fileInfo.Length;
+		if (lastPosition > fileLength) lastPosition = 0;
+		if (lastPosition == 0 && fileLength > 0) {
+			lastPosition = fileLength;
+			return;
+		}
+
+		if (fileLength > lastPosition) {
+			using var fs = new FileStream(logPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+			using var mmf = MemoryMappedFile.CreateFromFile(fs, null, 0, MemoryMappedFileAccess.Read, HandleInheritability.None, false);
+			using var accessor = mmf.CreateViewAccessor(lastPosition, fileLength - lastPosition, MemoryMappedFileAccess.Read);
+
+			byte[] bytes = new byte[fileLength - lastPosition];
+			accessor.ReadArray(0, bytes, 0, bytes.Length);
+
+			string text = Encoding.UTF8.GetString(bytes);
+			using var reader = new StringReader(text);
+			string? line;
+			while ((line = reader.ReadLine()) != null) {
+				if (!line.Contains("Got rewards", StringComparison.OrdinalIgnoreCase)) continue;
+
+				_ = Task.Run(async () => {
+					try {
+						await Task.Delay(500);
+						var screenshot = ScreenCapture.Capture();
+						var rewards = RelicRewardOCR.ReadRewards(screenshot, GameData.paddleEngine);
+
+						await Dispatcher.UIThread.InvokeAsync(async () => {
+							var tasks = rewards.Select(r =>
+								RelicRewardWindow.Display(this, r.ItemName, r.Rect.X, r.Rect.Y + 300, TimeSpan.FromSeconds(10))
+							);
+							await Task.WhenAll(tasks);
+						});
+					} catch (Exception ex) {
+						await Dispatcher.UIThread.InvokeAsync(() =>
+							MessageBox.Show(this, "Error", "Failed to read rewards: " + ex.Message)
+						);
+					}
+				});
+			}
+			lastPosition = fileLength;
+		}
 	}
 
 	private void OnItemsClick(object? sender, RoutedEventArgs e)

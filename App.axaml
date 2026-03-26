@@ -20,6 +20,8 @@
     <SolidColorBrush x:Key="MutedForegroundBrush" Color="#B4B4BE"/>
     <SolidColorBrush x:Key="SecondaryForegroundBrush" Color="#888888"/>
     <SolidColorBrush x:Key="PrimaryForegroundBrush" Color="#FFFFFF"/>
+    <Color x:Key="RewardWindowBackgroundColor">#B31E1E1E</Color> <!-- 70% opacity -->
+    <SolidColorBrush x:Key="RewardWindowBackgroundBrush" Color="{DynamicResource RewardWindowBackgroundColor}" />
   </Application.Resources>
 
   <Application.Styles>

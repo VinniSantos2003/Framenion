@@ -33,7 +33,7 @@ public class VoidFissure : INotifyPropertyChanged
 			var remaining = Expiry - DateTime.UtcNow;
 			if (remaining.TotalSeconds <= 0) return "Expired";
 			if (remaining.TotalHours >= 1)
-				return $"{(int)remaining.TotalHours}h {remaining.Minutes}m {remaining.Seconds}s";
+				return $"{(int)remaining.TotalHours}h {remaining.Minutes}m";
 			if (remaining.TotalMinutes >= 1)
 				return $"{remaining.Minutes}m {remaining.Seconds}s";
 			return $"{remaining.Seconds}s";

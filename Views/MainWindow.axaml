@@ -21,6 +21,7 @@
                 </StackPanel>
 
                 <!-- Player Info Panel -->
+                <Image Grid.Column="1" Name="WarframeOpened" HorizontalAlignment="Right" Width="32" Height="32" VerticalAlignment="Center" ToolTip.Tip="Warframe is closed" Source="avares://framenion/assets/uncheck_d.png" Margin="0, 0, 10, 0"/>
                 <Border Grid.Column="2" Background="{DynamicResource SurfaceBackgroundBrush}" CornerRadius="5" Padding="15,5">
                     <StackPanel Orientation="Horizontal" Spacing="15">
                         <StackPanel Orientation="Horizontal" Spacing="5">

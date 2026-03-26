@@ -1,0 +1,32 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:framenion"
+        x:Class="framenion.RelicRewardWindow"
+        x:DataType="local:RelicRewardWindow"
+        SystemDecorations="None"
+        CanResize="False"
+        ShowInTaskbar="False"
+        Topmost="True"
+        Background="{DynamicResource RewardWindowBackgroundBrush}"
+        Width="150"
+        Height="100">
+    <Border Padding="12">
+        <StackPanel>
+            <TextBlock Name="NameItem" Text="{Binding ItemName}" FontSize="15" Foreground="White" HorizontalAlignment="Center" TextWrapping="Wrap"/>
+            
+            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" Margin="0,10,0,0">
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="5">
+                <Image Source="avares://framenion/assets/platinum.png" Width="24" Height="24" VerticalAlignment="Center"/>
+                <TextBlock Name="PlatinumValue" Text="{Binding Price}" VerticalAlignment="Center" Foreground="{DynamicResource MutedForegroundBrush}"/>
+            </StackPanel>
+
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="5">
+                <Image Source="avares://framenion/assets/ducats.png" Width="24" Height="24" VerticalAlignment="Center"/>
+                <TextBlock Name="DucatValue" Text="{Binding Ducats}" VerticalAlignment="Center" Foreground="{DynamicResource MutedForegroundBrush}"/>
+            </StackPanel>
+            </Grid>
+        </StackPanel>
+    </Border>
+</Window>
