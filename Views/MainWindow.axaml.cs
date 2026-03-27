@@ -7,7 +7,8 @@ using Avalonia.Threading;
 using framenion.Src;
 using Sdcb.PaddleInference;
 using Sdcb.PaddleOCR;
-using Sdcb.PaddleOCR.Models.Local;
+using Sdcb.PaddleOCR.Models;
+using Sdcb.PaddleOCR.Models.Online;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -43,7 +44,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 	private IReadOnlyList<FissureAlertEntry> loadedFissureAlertList = [];
 
 	private CancellationTokenSource? searchDebounce;
-	private DispatcherTimer logPollTimer = new() { Interval = TimeSpan.FromSeconds(1) };
+	private DispatcherTimer logPollTimer = new() { Interval = TimeSpan.FromMilliseconds(100) };
 	private long lastPosition = 0;
 	private bool lastWfRunning = false;
 
@@ -77,6 +78,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 	private async Task InitializeAsync()
 	{
 		try {
+			FullOcrModel model = await OnlineFullModels.EnglishV3.DownloadAsync();
+			GameData.paddleEngine = new(model, PaddleDevice.Mkldnn()) {
+				AllowRotateDetection = false,
+				Enable180Classification = false,
+			};
 			appSettings = await AppSettings.LoadAsync();
 			await LoadNotifiedFissures();
 			loadedFissureAlertList = FissureAlertList.Load();
@@ -452,7 +458,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 			using var reader = new StringReader(text);
 			string? line;
 			while ((line = reader.ReadLine()) != null) {
-				if (!line.Contains("Got rewards", StringComparison.OrdinalIgnoreCase)) continue;
+				if (!line.Contains("Relic rewards initialized")) continue;
 
 				_ = Task.Run(async () => {
 					try {

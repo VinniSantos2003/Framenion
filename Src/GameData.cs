@@ -3,7 +3,6 @@ using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using Sdcb.PaddleInference;
 using Sdcb.PaddleOCR;
-using Sdcb.PaddleOCR.Models.Local;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Frozen;
@@ -36,10 +35,7 @@ public static class GameData
 	public static readonly HttpClient httpClient = new() {
 		BaseAddress = new Uri("https://browse.wf/"),
 	};
-	public static PaddleOcrAll paddleEngine = new(LocalFullModels.EnglishV3, PaddleDevice.Mkldnn()) {
-		AllowRotateDetection = false,
-		Enable180Classification = false,
-	};
+	public static PaddleOcrAll? paddleEngine;
 
 	public static JsonElement mainRoot = new();
 

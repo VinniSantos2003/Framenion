@@ -18,15 +18,16 @@ public class RelicRewardOCR
 		public Rect Rect;
 	}
 
-	public static List<Reward> ReadRewards(Mat screenshot, PaddleOcrAll engine)
+	public static List<Reward> ReadRewards(Mat screenshot, PaddleOcrAll? engine)
 	{
 		var rewards = new List<Reward>();
 		if (!OperatingSystem.IsWindows()) return rewards;
+		if (engine == null) return rewards;
 
-		//Cv2.ImWrite("debug_screenshot.png", screenshot); // Debug: save full screenshot
+		Cv2.ImWrite("debug_screenshot.png", screenshot); // Debug: save full screenshot
 		var roiRect = RectFromPercentages(screenshot, 0.25f, 0.20f, 0.50f, 0.24f);
 		var roi = screenshot[roiRect];
-		//Cv2.ImWrite("roi.png", roi);
+		Cv2.ImWrite("roi.png", roi);
 		var textRect = new Rect(
 				0,
 				(int)(roi.Height * 0.65),
@@ -81,6 +82,9 @@ public class RelicRewardOCR
 					regionRect.Width,
 					expandedHeight
 				);
+				if (itemName.Contains("Forma")) {
+					continue;
+				}
 				rewards.Add(new Reward {
 					ItemName = itemName,
 					Rect = adjustedRect
@@ -153,6 +157,11 @@ public static class ScreenCapture
 
 	private const int SM_CXSCREEN = 0;
 	private const int SM_CYSCREEN = 1;
+
+	private enum CopyPixelOperation
+	{
+		SourceCopy = 0x00CC0020
+	}
 
 	public static Mat Capture()
 	{
