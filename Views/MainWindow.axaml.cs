@@ -473,6 +473,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
 	private void ReadRelicWindow()
 	{
+		if (!GameData.appSettings.EnableRelicOverlay) return;
+
 		_ = Task.Run(async () => {
 			try {
 				await Task.Delay(2000);

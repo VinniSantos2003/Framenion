@@ -45,11 +45,11 @@
             <CheckBox Name="EnableEELogReadBox"
                       Content="Enable EE log reading"
                       Foreground="#D0D0D0"
-                      ToolTip.Tip="Enable real-time EE log reading"/>
+                      ToolTip.Tip="Enable real-time EE log reading.&#x0a;Disabling this will also disable automatic OCR relic rewards."/>
             <CheckBox Name="EnableRelicOverlayBox"
                       Content="Enable relic reward overlay"
                       Foreground="#D0D0D0"
-                      ToolTip.Tip="Enable OCR for relic rewards"/>
+                      ToolTip.Tip="Enable OCR for relic rewards.&#x0a;The OCR will run automatically if EE log reading is enabled or by pressing printscreen key at any moment."/>
             <Grid ColumnDefinitions="Auto, Auto, auto, auto" ColumnSpacing="10" ToolTip.Tip="Insert Warframe UI scale value">
                 <TextBlock Grid.Column="0" Text="UI scale (%)" Foreground="#D0D0D0" VerticalAlignment="Center"/>
                 <NumericUpDown Grid.Column="1" Name="UiScaleNumeric" Minimum="50" Maximum="100" ShowButtonSpinner="False"/>

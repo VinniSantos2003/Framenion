@@ -16,6 +16,10 @@
 		<PublishTrimmed>true</PublishTrimmed>
 	</PropertyGroup>
 
+	<PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
+	</PropertyGroup>
+
 	<ItemGroup>
 		<PackageReference Include="Avalonia" Version="11.3.11" />
 		<PackageReference Include="Avalonia.Controls.ItemsRepeater" Version="11.1.5" />
@@ -43,7 +47,7 @@
 	</ItemGroup>
 
 	<ItemGroup Condition="'$(RuntimeIdentifier)' == 'linux-x64'">
-		<PackageReference Include="OpenCvSharp4.runtime.ubuntu.20.04-x64" Version="4.13.0.20260302" />
+		<PackageReference Include="OpenCvSharp4.official.runtime.linux-x64" Version="4.13.0.20260302" />
 		<PackageReference Include="Sdcb.PaddleInference.runtime.linux-x64.mkl" Version="3.1.0.54" />
 	</ItemGroup>
 </Project>
