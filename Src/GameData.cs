@@ -213,12 +213,29 @@ public static class GameData
 						using var doc = await JsonDocument.ParseAsync(stream);
 						var builder = new Dictionary<string, string>(StringComparer.Ordinal);
 						foreach (var prop in doc.RootElement.EnumerateObject()) {
-							if (prop.Name.Contains("/CraftingComponent_")) {
+							var name = prop.Name;
+							if (name.Contains("/CraftingComponent_") && name.Contains("Prime") && !name.Contains("Desc")) {
 								primeItems.Add(prop.Value.GetString() ?? "");
 							}
-							builder[prop.Name] = prop.Value.ToString();
+							builder[name] = prop.Value.ToString();
 						}
 						lang = builder.ToFrozenDictionary();
+
+						var existing = new HashSet<string>(primeItems, StringComparer.OrdinalIgnoreCase);
+						var groups = primeItems.Where(s => !string.IsNullOrWhiteSpace(s)).GroupBy(s => {
+							var tokens = s.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+							if (tokens.Length <= 1) return s;
+							return string.Join(' ', tokens.Take(tokens.Length - 1));
+						}, StringComparer.OrdinalIgnoreCase);
+
+						foreach (var g in groups) {
+							if (g.Count() < 2) continue;
+							var blueprintName = g.Key + " Blueprint";
+							if (!existing.Contains(blueprintName)) {
+								primeItems.Add(blueprintName);
+								existing.Add(blueprintName);
+							}
+						}
 						break;
 					}
 				case "ExportWarframes":

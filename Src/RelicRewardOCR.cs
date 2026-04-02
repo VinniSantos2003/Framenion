@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace framenion.Src;
 
@@ -73,6 +74,9 @@ public class RelicRewardOCR
 			var itemName = string.Join(" ", validWords.Select(r => NormalizeItemName(r.Text))).Trim();
 			if (string.IsNullOrEmpty(itemName) || itemName.Contains("Forma") || itemName.Contains("Riven") || itemName.Contains("Star")) continue;
 
+			itemName = LevenshteinItemName(itemName);
+			if (itemName == null) continue;
+
 			var rects = validWords.Select(r => r.Rect.BoundingRect()).ToList();
 			int left = rects.Min(r => r.X); // leftmost edge of first word
 			int right = rects.Max(r => r.X + r.Width); // rightmost edge of last word
@@ -111,6 +115,50 @@ public class RelicRewardOCR
 		}
 
 		return builder.ToString();
+	}
+
+	private static string? LevenshteinItemName(string ocrText)
+	{
+		if (string.IsNullOrWhiteSpace(ocrText)) return null;
+
+		var candidates = GameData.primeItems.Where(s => !string.IsNullOrWhiteSpace(s)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+		var exact = candidates.FirstOrDefault(candidate => string.Equals(candidate, ocrText, StringComparison.OrdinalIgnoreCase));
+		if (exact != null) {
+			return exact;
+		}
+
+		var scored = candidates.Select(candidate => (Name: candidate, Score: LevenshteinSimilarity(ocrText, candidate))).OrderByDescending(t => t.Score).ToList();
+		if (scored.Count > 0 && scored[0].Score >= 0.80) {
+			return scored[0].Name;
+		}
+
+		return null;
+	}
+
+	private static double LevenshteinSimilarity(string a, string b)
+	{
+		if (a == b) return 1.0;
+		if (string.IsNullOrEmpty(a)) return string.IsNullOrEmpty(b) ? 1.0 : 0.0;
+		if (string.IsNullOrEmpty(b)) return 0.0;
+
+		int n = a.Length;
+		int m = b.Length;
+		var d = new int[n + 1, m + 1];
+		for (int i = 0; i <= n; i++) d[i, 0] = i;
+		for (int j = 0; j <= m; j++) d[0, j] = j;
+
+		for (int i = 1; i <= n; i++) {
+			for (int j = 1; j <= m; j++) {
+				int cost = a[i - 1] == b[j - 1] ? 0 : 1;
+				d[i, j] = Math.Min(
+					Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1),
+					d[i - 1, j - 1] + cost);
+			}
+		}
+
+		int levenshtein = d[n, m];
+		int max = Math.Max(n, m);
+		return max == 0 ? 1.0 : 1.0 - (double)levenshtein / max;
 	}
 }
 
