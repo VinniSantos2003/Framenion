@@ -30,15 +30,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 	private string currentItemsFilter = "All";
 	private string currentFissureFilter = "Normal";
 
-	private static readonly string EElog = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Warframe/EE.log");
-	private static readonly string inventoryFile = Path.Combine(AppData.AppDataDir, "inventory.json");
-	private static readonly string notifiedFissuresFile = Path.Combine(AppData.AppDataDir, "notified_fissures.txt");
+	private readonly string EElog = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Warframe/EE.log");
+	private readonly string inventoryFile = Path.Combine(AppData.AppDataDir, "inventory.json");
+	private readonly string notifiedFissuresFile = Path.Combine(AppData.AppDataDir, "notified_fissures.txt");
 
 	private readonly HashSet<string> notifiedFissures = [];
 	private IReadOnlyList<FissureAlertEntry> loadedFissureAlertList = [];
 
-	public static DispatcherTimer fissureRefreshTimer = new() { Interval = TimeSpan.FromMinutes(1) };
-	public static DispatcherTimer fissureUpdateTimer = new() { Interval = TimeSpan.FromSeconds(1) };
+	public DispatcherTimer fissureRefreshTimer = new() { Interval = TimeSpan.FromMinutes(1) };
+	public DispatcherTimer fissureUpdateTimer = new() { Interval = TimeSpan.FromSeconds(1) };
 
 	private CancellationTokenSource searchDebounce = new();
 
@@ -328,7 +328,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 		}
 	}
 
-	private static string ReadAccountName()
+	private string ReadAccountName()
 	{
 		if (!File.Exists(EElog)) return "";
 
