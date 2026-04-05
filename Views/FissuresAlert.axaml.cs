@@ -12,7 +12,7 @@ namespace framenion;
 
 public partial class FissuresAlert : Window
 {
-	private readonly string dataFilePath = Path.Combine(GameData.appDataDir, "fissures_filter.json");
+	private readonly string dataFilePath = Path.Combine(AppData.AppDataDir, "fissures_filter.json");
 	public ObservableCollection<FissureAlertEntry> Filters {  get; set; } = [];
 	public List<string> MissionTypes { get; } = ["Any"];
 	public List<string> Planets { get; } = ["Any"];
@@ -24,16 +24,16 @@ public partial class FissuresAlert : Window
 		DataContext = this;
 		WindowStartupLocation = WindowStartupLocation.CenterOwner;
 		var culture = new CultureInfo("en-US", false).TextInfo;
-		var missionNames = GameData.exportMissionTypes.Values.Select(el => {
+		var missionNames = GameData.ExportMissionTypes.Values.Select(el => {
 			try {
 				string nameKey = el;
-				return GameData.lang.TryGetValue(nameKey, out var v) ? culture.ToTitleCase(v.ToLower()) : nameKey;
+				return GameData.Lang.TryGetValue(nameKey, out var v) ? culture.ToTitleCase(v.ToLower()) : nameKey;
 			} catch { return string.Empty; }
 		}).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct(StringComparer.Ordinal).OrderBy(s => s, StringComparer.OrdinalIgnoreCase).ToList();
-		var planetNames = GameData.exportRegions.Values.Select(el => {
+		var planetNames = GameData.ExportRegions.Values.Select(el => {
 			try {
 				var systemName = el.SystemName;
-				return GameData.lang.TryGetValue(systemName, out var v) ? v : systemName;
+				return GameData.Lang.TryGetValue(systemName, out var v) ? v : systemName;
 			} catch { return string.Empty; }
 		}).Where(s => !string.IsNullOrWhiteSpace(s)).Distinct(StringComparer.Ordinal).OrderBy(s => s).ToList();
 

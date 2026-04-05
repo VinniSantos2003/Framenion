@@ -67,37 +67,36 @@ public class VoidFissure : INotifyPropertyChanged
 	public static async Task LoadVoidFissures()
 	{
 		try {
-			using var response = await GameData.httpClient.GetAsync("https://api.warframe.com/cdn/worldState.php",HttpCompletionOption.ResponseHeadersRead);
-			response.EnsureSuccessStatusCode();
-			await using var stream = await response.Content.ReadAsStreamAsync();
+			using var stream = await AppData.GetStreamAsync("https://api.warframe.com/cdn/worldState.php");
 			using var worldState = await JsonDocument.ParseAsync(stream);
 			if (!worldState.RootElement.TryGetProperty("ActiveMissions", out var activeMissions) || activeMissions.ValueKind != JsonValueKind.Array) return;
 
-			GameData.fissures.Clear();
+			GameData.Fissures.Clear();
 			var culture = new CultureInfo("en-US", false).TextInfo;
 			foreach (var mission in activeMissions.EnumerateArray()) {
 				var modifier = mission.GetProperty("Modifier").ToString();
 				var timestamp = long.Parse(mission.GetProperty("Expiry").GetProperty("$date").GetProperty("$numberLong").ToString());
 				var node = mission.GetProperty("Node").ToString();
-				var nodeInfo = GameData.exportRegions[node];
+				var nodeInfo = GameData.ExportRegions[node];
 				int baseLvl = (mission.TryGetProperty("Hard", out var hardEl) && hardEl.GetBoolean()) ? 100 : 0;
-				var missionType = culture.ToTitleCase(GameData.lang[GameData.exportMissionTypes[nodeInfo.MissionType]].ToLower());
+				var missionType = culture.ToTitleCase(GameData.Lang[GameData.ExportMissionTypes[nodeInfo.MissionType]].ToLower());
+				var relicInfo = GameData.relicType.TryGetValue(modifier, out (string name, string color) relic);
 				var fissure = new VoidFissure {
 					Id = mission.GetProperty("_id").GetProperty("$oid").ToString(),
 					Modifier = modifier,
-					Node = GameData.lang[nodeInfo.Name],
+					Node = GameData.Lang[nodeInfo.Name],
 					IsHard = baseLvl == 100,
-					Tier = GameData.relicType.TryGetValue(modifier, out (string, string) value1) ? value1.Item1 : modifier,
-					Color = GameData.relicType.TryGetValue(modifier, out (string, string) value) ? value.Item2 : "#FFFFFF",
+					Tier = relic.name,
+					Color = relic.color,
 					Expiry = DateTimeOffset.FromUnixTimeMilliseconds(timestamp).UtcDateTime,
-					Planet = GameData.lang[nodeInfo.SystemName],
-					Faction = GameData.lang[GameData.exportFactions[nodeInfo.Faction]],
+					Planet = GameData.Lang[nodeInfo.SystemName],
+					Faction = GameData.Lang[GameData.ExportFactions[nodeInfo.Faction]],
 					MissionType = missionType,
 					MinLevel = nodeInfo.MinEnemyLevel + baseLvl + 5,
 					MaxLevel = nodeInfo.MaxEnemyLevel + baseLvl + 5
 				};
 
-				GameData.fissures.Add(fissure);
+				GameData.Fissures.Add(fissure);
 			}
 		} catch (Exception ex) {
 			MessageBox.Show("Error", "Could not load Void Fissures: " + ex.Message);

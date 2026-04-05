@@ -56,7 +56,7 @@ public sealed class FissureAlertEntry
 
 public static class FissureAlertList
 {
-	private static readonly string DataFilePath = Path.Combine(GameData.appDataDir, "fissures_filter.json");
+	private static readonly string DataFilePath = Path.Combine(AppData.AppDataDir, "fissures_filter.json");
 
 	public static IReadOnlyList<FissureAlertEntry> Load()
 	{

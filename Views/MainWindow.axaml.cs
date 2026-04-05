@@ -31,8 +31,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 	private string currentFissureFilter = "Normal";
 
 	private static readonly string EElog = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Warframe/EE.log");
-	private static readonly string inventoryFile = Path.Combine(GameData.appDataDir, "inventory.json");
-	private static readonly string notifiedFissuresFile = Path.Combine(GameData.appDataDir, "notified_fissures.txt");
+	private static readonly string inventoryFile = Path.Combine(AppData.AppDataDir, "inventory.json");
+	private static readonly string notifiedFissuresFile = Path.Combine(AppData.AppDataDir, "notified_fissures.txt");
 
 	private readonly HashSet<string> notifiedFissures = [];
 	private IReadOnlyList<FissureAlertEntry> loadedFissureAlertList = [];
@@ -67,8 +67,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
 	public MainWindow()
 	{
-		Directory.CreateDirectory(GameData.cacheDir);
-		Directory.CreateDirectory(GameData.iconsCacheDir);
+		Directory.CreateDirectory(AppData.CacheDir);
+		Directory.CreateDirectory(AppData.IconsCacheDir);
 		InitializeComponent();
 		if (Design.IsDesignMode) {
 			return;
@@ -80,23 +80,23 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 		ItemsList.ItemsSource = displayedItems;
 		FissuresList.ItemsSource = displayedFissures;
 
-		GameData.monitor?.OnProcessStateChanged += running => {
+		AppData.Monitor?.OnProcessStateChanged += running => {
 			Dispatcher.UIThread.Post(() => {
 				if (running) {
 					WarframeOpened.Source = GameData.GetOrCreateBitmap(Path.Combine(AppContext.BaseDirectory, "assets", "check_d.png"));
-					if (GameData.appSettings.EnableEELogRead) {
-						GameData.monitor.Start();
+					if (AppData.AppSettings.EnableEELogRead) {
+						AppData.Monitor.Start();
 					}
 					ToolTip.SetTip(WarframeOpened, "Warframe is up and running.");
 				} else {
 					WarframeOpened.Source = GameData.GetOrCreateBitmap(Path.Combine(AppContext.BaseDirectory, "assets", "uncheck_d.png"));
 					ToolTip.SetTip(WarframeOpened, "Warframe is closed");
-					GameData.monitor.Stop();
+					AppData.Monitor.Stop();
 				}
 			});
 		};
 
-		GameData.monitor?.OnRewardDetected += () => {
+		AppData.Monitor?.OnRewardDetected += () => {
 			RelicRewardOCR.ReadRelicWindow();
 		};
 	}
@@ -107,19 +107,19 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 		keyboardHook.Unhook();
 		fissureRefreshTimer?.Stop();
 		fissureUpdateTimer?.Stop();
-		if (GameData.paddleEngine is IDisposable disposableEngine) {
+		if (AppData.PaddleEngine is IDisposable disposableEngine) {
 			disposableEngine.Dispose();
 		}
 		searchDebounce?.Cancel();
 		searchDebounce?.Dispose();
-		GameData.monitor?.Dispose();
+		AppData.Monitor?.Dispose();
 	}
 
 	private async Task InitializeAsync()
 	{
 		IsLoading = true;
 		try {
-			GameData.appSettings = await AppSettings.LoadAsync();
+			AppData.AppSettings = await AppSettings.LoadAsync();
 			await LoadNotifiedFissures();
 			loadedFissureAlertList = FissureAlertList.Load();
 
@@ -132,7 +132,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 			fissureRefreshTimer.Start();
 
 			FullOcrModel model = await OnlineFullModels.EnglishV4.DownloadAsync();
-			GameData.paddleEngine = new(model, PaddleDevice.Onnx()) {
+			AppData.PaddleEngine = new(model, PaddleDevice.Onnx()) {
 				AllowRotateDetection = false,
 				Enable180Classification = false,
 			};
@@ -153,9 +153,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 	private async Task InitializeDataInBackgroundAsync()
 	{
 		try {
-			string hashPath = Path.Combine(GameData.cacheDir, "export_hash");
-			GameData.httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Framenion");
-			var resp = await GameData.httpClient.GetStringAsync("https://api.github.com/repos/calamity-inc/warframe-public-export-plus/commits/senpai");
+			string hashPath = Path.Combine(AppData.CacheDir, "export_hash");
+			AppData.HttpClient.DefaultRequestHeaders.UserAgent.ParseAdd("Framenion");
+			var resp = await AppData.HttpClient.GetStringAsync("https://api.github.com/repos/calamity-inc/warframe-public-export-plus/commits/senpai");
 			using var json = JsonDocument.Parse(resp);
 			string latestHash = json.RootElement.GetProperty("sha").GetString() ?? "";
 
@@ -171,14 +171,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 			}
 
 			string[] firstLoad = ["dict.en", "ExportRegions", "ExportMissionTypes", "ExportFactions"];
-			var loadTasks = firstLoad.Select(f => GameData.LoadFile(f, GameData.cacheDir, needsUpdate));
+			var loadTasks = firstLoad.Select(f => GameData.LoadFile(f, AppData.CacheDir, needsUpdate));
 			await Task.WhenAll(loadTasks);
 			await Dispatcher.UIThread.InvokeAsync(async () => {
 				await VoidFissure.LoadVoidFissures();
 				await RefreshFissuresList();
 			});
 			string[] secondLoad = ["ExportWarframes", "ExportRecipes", "ExportWeapons", "ExportResources", "ExportMisc", "ExportSentinels", "ExportTextIcons"];
-			loadTasks = secondLoad.Select(f => GameData.LoadFile(f, GameData.cacheDir, needsUpdate));
+			loadTasks = secondLoad.Select(f => GameData.LoadFile(f, AppData.CacheDir, needsUpdate));
 			await Task.WhenAll(loadTasks);
 			await GameData.LoadWFMarketData(needsUpdate);
 
@@ -202,13 +202,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 		Bitmap? masteryIcon = null;
 		Bitmap? playerIcon = null;
 
-		await using var stream = File.OpenRead(inventoryFile);
-		using var doc = await JsonDocument.ParseAsync(stream);
+		await using var inventory = File.OpenRead(inventoryFile);
+		using var doc = await JsonDocument.ParseAsync(inventory);
 		var root = doc.RootElement;
 		if (root.ValueKind != JsonValueKind.Object) return;
-		GameData.mainRoot = root;
 
-		if (GameData.appSettings.EnableEELogRead) {
+		if (AppData.AppSettings.EnableEELogRead) {
 			var loggedInName = ReadAccountName();
 			if (!string.IsNullOrWhiteSpace(loggedInName)) {
 				playerName = loggedInName;
@@ -225,35 +224,34 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 		root.TryGetProperty("PlayerLevel", out var mr);
 		var mr_str = (mr.GetUInt16() > 30) ? "L" + (mr.GetUInt16() - 30) : mr.ToString();
 		masteryText = mr_str;
-		if (GameData.exportTextIcons.TryGetValue($"RANK_{mr}", out var rankIconEl)) {
-			using var icon_resp = await GameData.httpClient.GetAsync(rankIconEl);
-			masteryIcon = new Bitmap(await icon_resp.Content.ReadAsStreamAsync());
+		if (GameData.ExportTextIcons.TryGetValue($"RANK_{mr}", out var rankIconEl)) {
+			using var stream = await AppData.GetStreamAsync(rankIconEl);
+			masteryIcon = new Bitmap(stream);
 		}
 
 		root.TryGetProperty("ActiveAvatarImageType", out var icon_path);
-		using var glyph_resp = await GameData.httpClient.GetAsync(icon_path.ToString());
-		glyph_resp.EnsureSuccessStatusCode();
-		using var glyph_doc = await JsonDocument.ParseAsync(await glyph_resp.Content.ReadAsStreamAsync());
+		using var icon_doc = await AppData.GetStreamAsync(icon_path.ToString());
+		using var glyph_doc = await JsonDocument.ParseAsync(icon_doc);
 		if (glyph_doc.RootElement.ValueKind == JsonValueKind.Object) {
 			glyph_doc.RootElement.TryGetProperty("icon", out var icon_url);
-			var icon_resp = await GameData.httpClient.GetAsync(icon_url.ToString());
-			playerIcon = new Bitmap(await icon_resp.Content.ReadAsStreamAsync());
+			using var stream = await AppData.GetStreamAsync(icon_url.ToString());
+			playerIcon = new Bitmap(stream);
 		}
 
-		if (!GameData.mainRoot.TryGetProperty("MiscItems", out var miscEl) ||
-			!GameData.mainRoot.TryGetProperty("Recipes", out var recipesEl) ||
-			!GameData.mainRoot.TryGetProperty("XPInfo", out var xpInfoEl) ||
-			!GameData.mainRoot.TryGetProperty("MechSuits", out var mechEl) ||
-			!GameData.mainRoot.TryGetProperty("Suits", out var warframeEl) ||
-			!GameData.mainRoot.TryGetProperty("SpaceSuits", out var archwingsEl) ||
-			!GameData.mainRoot.TryGetProperty("LongGuns", out var primaryEl) ||
-			!GameData.mainRoot.TryGetProperty("Melee", out var meleeEl) ||
-			!GameData.mainRoot.TryGetProperty("Pistols", out var pistolsEl) ||
-			!GameData.mainRoot.TryGetProperty("SpaceGuns", out var archweaponsEl) ||
-			!GameData.mainRoot.TryGetProperty("SpaceMelee", out var archmeleeEl) ||
-			!GameData.mainRoot.TryGetProperty("Sentinels", out var sentinelsEl) ||
-			!GameData.mainRoot.TryGetProperty("SentinelWeapons", out var sentinelWeaponsEl) ||
-			!GameData.mainRoot.TryGetProperty("KubrowPets", out var petsEl)) return;
+		if (!root.TryGetProperty("MiscItems", out var miscEl) ||
+			!root.TryGetProperty("Recipes", out var recipesEl) ||
+			!root.TryGetProperty("XPInfo", out var xpInfoEl) ||
+			!root.TryGetProperty("MechSuits", out var mechEl) ||
+			!root.TryGetProperty("Suits", out var warframeEl) ||
+			!root.TryGetProperty("SpaceSuits", out var archwingsEl) ||
+			!root.TryGetProperty("LongGuns", out var primaryEl) ||
+			!root.TryGetProperty("Melee", out var meleeEl) ||
+			!root.TryGetProperty("Pistols", out var pistolsEl) ||
+			!root.TryGetProperty("SpaceGuns", out var archweaponsEl) ||
+			!root.TryGetProperty("SpaceMelee", out var archmeleeEl) ||
+			!root.TryGetProperty("Sentinels", out var sentinelsEl) ||
+			!root.TryGetProperty("SentinelWeapons", out var sentinelWeaponsEl) ||
+			!root.TryGetProperty("KubrowPets", out var petsEl)) return;
 
 		var xpByType = new Dictionary<string, long>(StringComparer.Ordinal);
 		foreach (var e in xpInfoEl.EnumerateArray())
@@ -279,11 +277,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 			}
 		}
 
-		foreach (var item in GameData.itemsList) {
+		foreach (var item in GameData.ItemsList) {
 			var resultType = item.Type;
 
 			xpByType.TryGetValue(resultType, out var xpForItem);
-			var requiredXp = XpToMaster(resultType);
+			var requiredXp = GameData.XpToMaster(resultType);
 			if (xpForItem >= requiredXp) item.Mastered = true;
 			if (ownedTypes.Contains(resultType)) item.BorderColor = "#3aba29";
 
@@ -294,7 +292,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 				}
 
 				ingred.OwnedCount = ingred_count;
-				if (!GameData.exportRecipes.TryGetValue(type, out var subRecipe) || subRecipe.recipe.Ingredients == null) continue;
+				if (!GameData.ExportRecipes.TryGetValue(type, out var subRecipe) || subRecipe.recipe.Ingredients == null) continue;
 				var subIngredients = subRecipe.recipe.Ingredients;
 				bool canCraft = true;
 				foreach (var sub in subIngredients) {
@@ -324,18 +322,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 				RefreshItemsList();
 			});
 		}
-	}
-
-	private static long XpToMaster(string type)
-	{
-		int levelCap = 30;
-		if (GameData.uniquelevelCaps.Contains(type)) {
-			levelCap = 40;
-		}
-
-		bool isWarframe = type.Contains("/Lotus/Powersuits/", StringComparison.Ordinal);
-		long baseXp = isWarframe ? 1000L : 500L;
-		return baseXp * (long)levelCap * (long)levelCap;
 	}
 
 	private static string ReadAccountName()
@@ -377,7 +363,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 			if (fissure.Expiry <= now) {
 				expiredIds.Add(fissure.Id);
 				displayedFissures.RemoveAt(i);
-				GameData.fissures.Remove(fissure);
+				GameData.Fissures.Remove(fissure);
 			}
 		}
 
@@ -396,7 +382,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 	private void RefreshItemsList()
 	{
 		displayedItems.Clear();
-		var filtered = GameData.itemsList.AsEnumerable();
+		var filtered = GameData.ItemsList.AsEnumerable();
 		filtered = currentItemsFilter switch {
 			"Warframes" => filtered.Where(r => r.Category == "Suits"),
 			"Primary" => filtered.Where(r => r.Category == "LongGuns"),
@@ -423,7 +409,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 	private async Task RefreshFissuresList()
 	{
 		displayedFissures.Clear();
-		var ordered = GameData.fissures.Select(f => {
+		var ordered = GameData.Fissures.Select(f => {
 			f.ShouldNotify = FissureAlertList.MatchesAny(f, loadedFissureAlertList);
 			return f;
 		}).OrderByDescending(f => f.ShouldNotify)
@@ -441,14 +427,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 			displayedFissures.Add(fissure);
 		}
 
-		var activeIds = GameData.fissures.Select(f => f.Id).ToHashSet(StringComparer.Ordinal);
+		var activeIds = GameData.Fissures.Select(f => f.Id).ToHashSet(StringComparer.Ordinal);
 		bool pruned = notifiedFissures.RemoveWhere(id => !activeIds.Contains(id)) > 0;
 
 		if (matches.Count > 0 || pruned) {
 			await SaveNotifiedFissures();
 		}
 
-		if (!GameData.appSettings.EnableNotifications || matches.Count == 0) return;
+		if (!AppData.AppSettings.EnableNotifications || matches.Count == 0) return;
 
 		var title = matches.Count == 1 ? "Fissure found" : $"{matches.Count} Fissures found";
 		var body = matches.Count == 1

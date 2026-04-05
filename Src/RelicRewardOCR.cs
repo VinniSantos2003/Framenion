@@ -28,7 +28,7 @@ public class RelicRewardOCR
 
 	public static void ReadRelicWindow()
 	{
-		if (!GameData.appSettings.EnableRelicOverlay) return;
+		if (!AppData.AppSettings.EnableRelicOverlay) return;
 
 		_ = Task.Run(async () => {
 			try {
@@ -42,7 +42,7 @@ public class RelicRewardOCR
 				var rewardInfoTasks = rewards.Select(r => GameData.GetItemData(r.ItemName)).ToArray();
 				var rewardInfos = await Task.WhenAll(rewardInfoTasks);
 
-				var displayTasks = rewards.Zip(rewardInfos, (reward, info) => RelicRewardWindow.Display(info, reward.Rect.X, reward.Rect.Y + GameData.appSettings.OverlayOffset, reward.Rect.Width, TimeSpan.FromSeconds(10)));
+				var displayTasks = rewards.Zip(rewardInfos, (reward, info) => RelicRewardWindow.Display(info, reward.Rect.X, reward.Rect.Y + AppData.AppSettings.OverlayOffset, reward.Rect.Width, TimeSpan.FromSeconds(10)));
 				await Task.WhenAll(displayTasks);
 			} catch (Exception ex) {
 				MessageBox.Show("Error", $"Failed to read rewards: {ex.Message}");
@@ -54,9 +54,9 @@ public class RelicRewardOCR
 	{
 		var rewards = new List<Reward>();
 
-		if (!OperatingSystem.IsWindows() || GameData.paddleEngine == null) return rewards;
+		if (!OperatingSystem.IsWindows() || AppData.PaddleEngine == null) return rewards;
 
-		double uiScale = GameData.appSettings.UIScale / 100.0;
+		double uiScale = AppData.AppSettings.UIScale / 100.0;
 		int mostWidth = (int)(rewardsWidth * uiScale);
 		int rewardsAreaWidth = (int)(rewardsWidth * uiScale);
 		int rewardsAreaLeft = (screenshot.Width / 2) - (rewardsAreaWidth / 2);
@@ -65,11 +65,11 @@ public class RelicRewardOCR
 		var rewardsRect = new Rect(rewardsAreaLeft, rewardsAreaTop, rewardsAreaWidth, rewardsAreaBottom - rewardsAreaTop);
 		using var cropped = screenshot[rewardsRect].Clone();
 		Cv2.Resize(cropped, cropped, new Size(), ocrScale, ocrScale, InterpolationFlags.Lanczos4);
-		if (GameData.appSettings.DebugOCR) {
-			Cv2.ImWrite(Path.Combine(GameData.appDataDir, "debug_itemnames.png"), cropped);
+		if (AppData.AppSettings.DebugOCR) {
+			Cv2.ImWrite(Path.Combine(AppData.AppDataDir, "debug_itemnames.png"), cropped);
 		}
 
-		var itemNames = GameData.paddleEngine.Run(cropped);
+		var itemNames = AppData.PaddleEngine.Run(cropped);
 		float xThreshold = 200f;
 		var words = itemNames.Regions.Where(r => !string.IsNullOrWhiteSpace(r.Text))
 			.Select(r => (region: r, x1: r.Rect.Center.X)).OrderBy(t => t.x1).ToList();
@@ -144,7 +144,7 @@ public class RelicRewardOCR
 	{
 		if (string.IsNullOrWhiteSpace(ocrText)) return null;
 
-		var candidates = GameData.primeItems.Where(s => !string.IsNullOrWhiteSpace(s)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+		var candidates = GameData.PrimeItems.Where(s => !string.IsNullOrWhiteSpace(s)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 		var exact = candidates.FirstOrDefault(candidate => string.Equals(candidate, ocrText, StringComparison.OrdinalIgnoreCase));
 		if (exact != null) {
 			return exact;

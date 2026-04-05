@@ -51,9 +51,9 @@ public partial class SettingsWindow : Window
 		try {
 			await settings.SaveAsync();
 			if (settings.EnableEELogRead) {
-				GameData.monitor?.Start();
+				AppData.Monitor?.Start();
 			} else {
-				GameData.monitor?.Stop();
+				AppData.Monitor?.Stop();
 			}
 			ToastWindow.ShowToast("Settings", "Settings saved successfully.", TimeSpan.FromSeconds(3), ToastAnchor.TopRightOfOwnerWindow);
 		} catch (Exception ex) {

@@ -20,13 +20,13 @@ public sealed class AppSettings
 	public bool DebugOCR { get; set; } = false;
 	public int OverlayOffset { get; set; } = 200;
 
-	public static string SettingsPath => Path.Combine(GameData.appDataDir, "settings.json");
+	public static string SettingsPath => Path.Combine(AppData.AppDataDir, "settings.json");
 
 	public static async Task<AppSettings> LoadAsync()
 	{
 		var settings = new AppSettings();
 		try {
-			Directory.CreateDirectory(GameData.appDataDir);
+			Directory.CreateDirectory(AppData.AppDataDir);
 			if (!File.Exists(SettingsPath)) return settings;
 
 			await using var stream = File.OpenRead(SettingsPath);
@@ -54,7 +54,7 @@ public sealed class AppSettings
 
 	public async Task SaveAsync()
 	{
-		Directory.CreateDirectory(GameData.appDataDir);
+		Directory.CreateDirectory(AppData.AppDataDir);
 
 		await using var fs = File.Create(SettingsPath);
 		var options = new JsonWriterOptions { Indented = true };

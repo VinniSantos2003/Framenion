@@ -25,7 +25,7 @@ public class RewardInfo(string name)
 
 public static class GameData
 {
-	public static readonly IReadOnlyDictionary<string, (string, string)> relicType = new Dictionary<string, (string, string)>(StringComparer.Ordinal) {
+	public static readonly IReadOnlyDictionary<string, (string name, string color)> relicType = new Dictionary<string, (string, string)>(StringComparer.Ordinal) {
 		["VoidT1"] = ("Lith", "#72523c"),
 		["VoidT2"] = ("Meso", "#917147"),
 		["VoidT3"] = ("Neo", "#c9c3c4"),
@@ -33,41 +33,25 @@ public static class GameData
 		["VoidT5"] = ("Requiem", "#e80c1e"),
 		["VoidT6"] = ("Omnia", "#FFFFFF")
 	};
-	public static readonly string appDataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Framenion");
-	public static readonly string cacheDir = Path.Combine(appDataDir, "cache");
-	public static readonly string iconsCacheDir = Path.Combine(cacheDir, "icons");
 
-	private static readonly SemaphoreSlim iconDownloadSemaphore = new(10, 10);
-	public static readonly HttpClient httpClient = new() {
-		BaseAddress = new Uri("https://browse.wf/"),
-	};
-	public static PaddleOcrAll? paddleEngine;
-	public static WarframeMonitor? monitor = new();
+	public static List<VoidFissure> Fissures { get; set; } = [];
+	public static List<Item> ItemsList { get; set; } = [];
 
-	public static JsonElement mainRoot = new();
+	public static FrozenDictionary<string, string> Lang { get; set; } = FrozenDictionary<string, string>.Empty;
+	public static FrozenDictionary<string, string> ExportTextIcons { get; set; } = FrozenDictionary<string, string>.Empty;
+	public static FrozenDictionary<string, string> ExportMissionTypes { get; set; } = FrozenDictionary<string, string>.Empty;
+	public static FrozenDictionary<string, string> ExportFactions { get; set; } = FrozenDictionary<string, string>.Empty;
 
-	public static List<VoidFissure> fissures = [];
-	public static List<Item> itemsList = [];
+	public static FrozenDictionary<string, (string slug, string ducats)> WarframeMarketItems { get; set; } = FrozenDictionary<string, (string, string)>.Empty;
+	public static FrozenDictionary<string, (string name, RecipeDTO recipe)> ExportRecipes { get; set; } = FrozenDictionary<string, (string, RecipeDTO)>.Empty;
+	public static FrozenDictionary<string, ResourceDTO> ExportResources { get; set; } = FrozenDictionary<string, ResourceDTO>.Empty;
+	public static FrozenDictionary<string, ItemDTO> ExportWarframes { get; set; } = FrozenDictionary<string, ItemDTO>.Empty;
+	public static FrozenDictionary<string, ItemDTO> ExportWeapons { get; set; } = FrozenDictionary<string, ItemDTO>.Empty;
+	public static FrozenDictionary<string, ItemDTO> ExportSentinels { get; set; } = FrozenDictionary<string, ItemDTO>.Empty;
+	public static FrozenDictionary<string, RegionDTO> ExportRegions { get; set; } = FrozenDictionary<string, RegionDTO>.Empty;
 
-	public static FrozenDictionary<string, string> lang = FrozenDictionary<string, string>.Empty;
-	public static FrozenDictionary<string, string> exportTextIcons = FrozenDictionary<string, string>.Empty;
-	public static FrozenDictionary<string, string> exportMissionTypes = FrozenDictionary<string, string>.Empty;
-	public static FrozenDictionary<string, string> exportFactions = FrozenDictionary<string, string>.Empty;
-
-	public static FrozenDictionary<string, (string slug, string ducats)> warframeMarketItems = FrozenDictionary<string, (string, string)>.Empty;
-	public static FrozenDictionary<string, (string name, RecipeDTO recipe)> exportRecipes = FrozenDictionary<string, (string, RecipeDTO)>.Empty;
-	public static FrozenDictionary<string, ResourceDTO> exportResources = FrozenDictionary<string, ResourceDTO>.Empty;
-	public static FrozenDictionary<string, ItemDTO> exportWarframes = FrozenDictionary<string, ItemDTO>.Empty;
-	public static FrozenDictionary<string, ItemDTO> exportWeapons = FrozenDictionary<string, ItemDTO>.Empty;
-	public static FrozenDictionary<string, ItemDTO> exportSentinels = FrozenDictionary<string, ItemDTO>.Empty;
-	public static FrozenDictionary<string, RegionDTO> exportRegions = FrozenDictionary<string, RegionDTO>.Empty;
-
-	public static List<string> uniquelevelCaps = [];
-	public static List<string> primeItems = [];
-
-	public static AppSettings appSettings = new();
-
-	private static readonly ConcurrentDictionary<string, Lazy<Bitmap?>> bitmapCache = new(StringComparer.Ordinal);
+	public static List<string> UniquelevelCaps { get; set; } = [];
+	public static List<string> PrimeItems { get; set; } = [];
 
 	public static async Task<FrozenDictionary<string, T>> Deserialize<T>(string path, JsonTypeInfo<T> typeInfo)
 	{
@@ -86,7 +70,7 @@ public static class GameData
 	public static Bitmap? GetOrCreateBitmap(string localPath, int decodeWidth = 80)
 	{
 		if (string.IsNullOrEmpty(localPath) || !File.Exists(localPath)) return null;
-		var lazy = bitmapCache.GetOrAdd(localPath, path =>
+		var lazy = AppData.BitmapCache.GetOrAdd(localPath, path =>
 			new Lazy<Bitmap?>(() => {
 				try {
 					using var fs = File.OpenRead(path);
@@ -100,21 +84,21 @@ public static class GameData
 
 	public static void ClearBitmapCache()
 	{
-		foreach (var kv in bitmapCache) {
+		foreach (var kv in AppData.BitmapCache) {
 			if (kv.Value.IsValueCreated && kv.Value.Value is IDisposable d) {
 				try { d.Dispose(); } catch { }
 			}
 		}
-		bitmapCache.Clear();
+		AppData.BitmapCache.Clear();
 	}
 
 	public static string GetLocalIconPath(string icon)
 	{
 		if (string.IsNullOrEmpty(icon)) return "";
 		if (icon.Contains("/CraftingComponents/")) {
-			return Path.Combine(iconsCacheDir, icon.Split("/CraftingComponents/")[1]);
+			return Path.Combine(AppData.IconsCacheDir, icon.Split("/CraftingComponents/")[1]);
 		}
-		return Path.Combine(iconsCacheDir, icon.Split('/').Last());
+		return Path.Combine(AppData.IconsCacheDir, icon.Split('/').Last());
 	}
 
 	private static async Task DownloadIconAsync(string icon)
@@ -122,16 +106,14 @@ public static class GameData
 		var iconPath = GetLocalIconPath(icon);
 		if (File.Exists(iconPath)) return;
 
-		await iconDownloadSemaphore.WaitAsync();
+		await AppData.IconDownloadSemaphore.WaitAsync();
 		try {
 			if (File.Exists(iconPath)) return;
-			using var iconResp = await httpClient.GetAsync(icon, HttpCompletionOption.ResponseHeadersRead);
-			iconResp.EnsureSuccessStatusCode();
-			await using var iconStream = await iconResp.Content.ReadAsStreamAsync();
-			await using var fileStream = File.Create(iconPath);
+			using var iconStream = await AppData.GetStreamAsync(icon);
+			using var fileStream = File.Create(iconPath);
 			await iconStream.CopyToAsync(fileStream);
 		} finally {
-			iconDownloadSemaphore.Release();
+			AppData.IconDownloadSemaphore.Release();
 		}
 	}
 
@@ -148,14 +130,11 @@ public static class GameData
 
 	public static async Task LoadWFMarketData(bool updateFile)
 	{
-		var cacheFile = Path.Combine(cacheDir, "wfmarketitems.json");
+		var cacheFile = Path.Combine(AppData.CacheDir, "wfmarketitems.json");
 		try {
 			if (updateFile) {
 				var url = "https://api.warframe.market/v2/items/";
-				using var resp = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
-				resp.EnsureSuccessStatusCode();
-				await using var stream = await resp.Content.ReadAsStreamAsync();
-
+				using var stream = await AppData.GetStreamAsync(url);
 				using var fileStream = File.Create(cacheFile);
 				await stream.CopyToAsync(fileStream);
 			}
@@ -179,7 +158,7 @@ public static class GameData
 				}
 			}
 
-			warframeMarketItems = builder.ToFrozenDictionary(StringComparer.Ordinal);
+			WarframeMarketItems = builder.ToFrozenDictionary(StringComparer.Ordinal);
 		} catch (Exception ex) {
 			MessageBox.Show("Error", "Failed to load Warframe Market items: " + ex.Message);
 		}
@@ -191,11 +170,7 @@ public static class GameData
 		if (!File.Exists(exportCacheFile) || updateFile) {
 			try {
 				var url = "https://raw.githubusercontent.com/calamity-inc/warframe-public-export-plus/refs/heads/senpai/" + file + ".json";
-
-				using var resp = await httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
-				resp.EnsureSuccessStatusCode();
-
-				await using var inStream = await resp.Content.ReadAsStreamAsync();
+				using var inStream = await AppData.GetStreamAsync(url);
 				await using var outStream = File.Create(exportCacheFile);
 				await inStream.CopyToAsync(outStream);
 			} catch {
@@ -212,14 +187,14 @@ public static class GameData
 						foreach (var prop in doc.RootElement.EnumerateObject()) {
 							var name = prop.Name;
 							if (name.Contains("/CraftingComponent_") && name.Contains("Prime") && !name.Contains("Desc")) {
-								primeItems.Add(prop.Value.GetString() ?? "");
+								PrimeItems.Add(prop.Value.GetString() ?? "");
 							}
 							builder[name] = prop.Value.ToString();
 						}
-						lang = builder.ToFrozenDictionary();
+						Lang = builder.ToFrozenDictionary();
 
-						var existing = new HashSet<string>(primeItems, StringComparer.OrdinalIgnoreCase);
-						var groups = primeItems.Where(s => !string.IsNullOrWhiteSpace(s)).GroupBy(s => {
+						var existing = new HashSet<string>(PrimeItems, StringComparer.OrdinalIgnoreCase);
+						var groups = PrimeItems.Where(s => !string.IsNullOrWhiteSpace(s)).GroupBy(s => {
 							var tokens = s.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 							if (tokens.Length <= 1) return s;
 							return string.Join(' ', tokens.Take(tokens.Length - 1));
@@ -229,20 +204,20 @@ public static class GameData
 							if (g.Count() < 2) continue;
 							var blueprintName = g.Key + " Blueprint";
 							if (!existing.Contains(blueprintName)) {
-								primeItems.Add(blueprintName);
+								PrimeItems.Add(blueprintName);
 								existing.Add(blueprintName);
 							}
 						}
 						break;
 					}
 				case "ExportWarframes":
-					exportWarframes = await Deserialize(exportCacheFile, ExportJsonContext.Default.ItemDTO);
+					ExportWarframes = await Deserialize(exportCacheFile, ExportJsonContext.Default.ItemDTO);
 					break;
 				case "ExportWeapons":
-					exportWeapons = await Deserialize(exportCacheFile, ExportJsonContext.Default.ItemDTO);
+					ExportWeapons = await Deserialize(exportCacheFile, ExportJsonContext.Default.ItemDTO);
 					break;
 				case "ExportSentinels":
-					exportSentinels = await Deserialize(exportCacheFile, ExportJsonContext.Default.ItemDTO);
+					ExportSentinels = await Deserialize(exportCacheFile, ExportJsonContext.Default.ItemDTO);
 					break;
 				case "ExportRecipes": {
 						await using var stream = File.OpenRead(exportCacheFile);
@@ -256,14 +231,14 @@ public static class GameData
 								builder[rtStr] = (r.Name, recipe);
 							}
 						}
-						exportRecipes = builder.ToFrozenDictionary();
+						ExportRecipes = builder.ToFrozenDictionary();
 						break;
 					}
 				case "ExportRegions":
-					exportRegions = await Deserialize(exportCacheFile, ExportJsonContext.Default.RegionDTO);
+					ExportRegions = await Deserialize(exportCacheFile, ExportJsonContext.Default.RegionDTO);
 					break;
 				case "ExportResources":
-					exportResources = await Deserialize(exportCacheFile, ExportJsonContext.Default.ResourceDTO);
+					ExportResources = await Deserialize(exportCacheFile, ExportJsonContext.Default.ResourceDTO);
 					break;
 				case "ExportMissionTypes": {
 						using var stream = File.OpenRead(exportCacheFile);
@@ -274,7 +249,7 @@ public static class GameData
 								builder[prop.Name] = nameProp.GetString() ?? "";
 							}
 						}
-						exportMissionTypes = builder.ToFrozenDictionary();
+						ExportMissionTypes = builder.ToFrozenDictionary();
 						break;
 					}
 				case "ExportFactions": {
@@ -286,7 +261,7 @@ public static class GameData
 								builder[prop.Name] = nameProp.GetString() ?? "";
 							}
 						}
-						exportFactions = builder.ToFrozenDictionary();
+						ExportFactions = builder.ToFrozenDictionary();
 						break;
 					}
 				case "ExportTextIcons": {
@@ -298,14 +273,14 @@ public static class GameData
 								builder[prop.Name] = nameProp.GetString() ?? "";
 							}
 						}
-						exportTextIcons = builder.ToFrozenDictionary();
+						ExportTextIcons = builder.ToFrozenDictionary();
 						break;
 					}
 				case "ExportMisc": {
 						await using var stream = File.OpenRead(exportCacheFile);
 						using var doc = await JsonDocument.ParseAsync(stream);
 						foreach (var prop in doc.RootElement.GetProperty("uniqueLevelCaps").EnumerateObject()) {
-							uniquelevelCaps.Add(prop.Name);
+							UniquelevelCaps.Add(prop.Name);
 						}
 						break;
 					}
@@ -317,19 +292,19 @@ public static class GameData
 
 	private static string ResolveName(string langKey)
 	{
-		var name = lang.TryGetValue(langKey, out var value) ? value : langKey;
+		var name = Lang.TryGetValue(langKey, out var value) ? value : langKey;
 		return name.Replace("<ARCHWING> ", "");
 	}
 
 	private static IEnumerable<string> GetIngredientIconUrls(string type)
 	{
-		if (!exportRecipes.TryGetValue(type, out var recipe)) yield break;
+		if (!ExportRecipes.TryGetValue(type, out var recipe)) yield break;
 		var ingredients = recipe.recipe.Ingredients;
 		if (ingredients == null || ingredients.Count < 1 ) yield break;
 		foreach (var ingredient in ingredients) {
 			var ingredientType = ingredient.Type;
 			if (string.IsNullOrWhiteSpace(ingredientType)) continue;
-			if (!exportResources.TryGetValue(ingredientType, out var resource) || resource == null) continue;
+			if (!ExportResources.TryGetValue(ingredientType, out var resource) || resource == null) continue;
 			var icon = resource.Icon;
 			if (!string.IsNullOrEmpty(icon)) yield return icon;
 		}
@@ -338,7 +313,7 @@ public static class GameData
 	private static ObservableCollection<RecipeIngredient> BuildIngredients(string parentName, string parentType, string blueprintPath)
 	{
 		var result = new ObservableCollection<RecipeIngredient>();
-		if (!exportRecipes.TryGetValue(parentType, out var recipe)) return result;
+		if (!ExportRecipes.TryGetValue(parentType, out var recipe)) return result;
 		var ingredients = recipe.recipe.Ingredients;
 		if (ingredients == null) return result;
 
@@ -346,7 +321,7 @@ public static class GameData
 		foreach (var ingredient in ingredients) {
 			var ingredientType = ingredient.Type;
 			if (string.IsNullOrWhiteSpace(ingredientType)) continue;
-			if (!exportResources.TryGetValue(ingredientType, out var resource) || resource == null) continue;
+			if (!ExportResources.TryGetValue(ingredientType, out var resource) || resource == null) continue;
 			var ingredientLangKey = resource.Name;
 			result.Add(new RecipeIngredient(
 				ResolveName(ingredientLangKey),
@@ -371,37 +346,37 @@ public static class GameData
 	{
 		string blueprintPath = Path.Combine(AppContext.BaseDirectory, "assets", "blueprint.png");
 		try {
-			itemsList.Clear();
+			ItemsList.Clear();
 			var iconUrls = new HashSet<string>(StringComparer.Ordinal);
-			foreach (var (type, element) in exportWarframes
-				.Concat(exportWeapons.Where(kvp => !ShouldSkipWeapon(kvp.Key, kvp.Value)))
-				.Concat(exportSentinels.Where(kvp => !kvp.Key.Contains("/Pets/")))) {
+			foreach (var (type, element) in ExportWarframes
+				.Concat(ExportWeapons.Where(kvp => !ShouldSkipWeapon(kvp.Key, kvp.Value)))
+				.Concat(ExportSentinels.Where(kvp => !kvp.Key.Contains("/Pets/")))) {
 				iconUrls.Add(element.Icon);
 				foreach (var url in GetIngredientIconUrls(type)) iconUrls.Add(url);
 			}
 			await DownloadIconsAsync(iconUrls);
 
-			foreach (var (type, warframe) in exportWarframes) {
+			foreach (var (type, warframe) in ExportWarframes) {
 				var name = ResolveName(warframe.Name);
 				var category = warframe.Category;
 				if (category is "MechSuits" or "SpaceSuits") category = "Vehicles";
-				itemsList.Add(new Item(name, type, BuildIngredients(name, type, blueprintPath), category, GetLocalIconPath(warframe.Icon), false));
+				ItemsList.Add(new Item(name, type, BuildIngredients(name, type, blueprintPath), category, GetLocalIconPath(warframe.Icon), false));
 			}
 
-			foreach (var (type, weapon) in exportWeapons) {
+			foreach (var (type, weapon) in ExportWeapons) {
 				if (ShouldSkipWeapon(type, weapon)) continue;
 				var name = ResolveName(weapon.Name);
 				var category = weapon.Category;
 				if (type.Contains("/Hoverboard/")) category = "Vehicles";
 				else if (type.Contains("/Pets/")) category = "Companions";
 				else if (type.Contains("Amp") && type.Contains("Barrel")) category = "OperatorAmps";
-				itemsList.Add(new Item(name, type, BuildIngredients(name, type, blueprintPath), category, GetLocalIconPath(weapon.Icon), false));
+				ItemsList.Add(new Item(name, type, BuildIngredients(name, type, blueprintPath), category, GetLocalIconPath(weapon.Icon), false));
 			}
 
-			foreach (var (type, sentinel) in exportSentinels) {
+			foreach (var (type, sentinel) in ExportSentinels) {
 				if (type.Contains("/Pets/")) continue;
 				var name = ResolveName(sentinel.Name);
-				itemsList.Add(new Item(name, type, BuildIngredients(name, type, blueprintPath), "Companions", GetLocalIconPath(sentinel.Icon), false));
+				ItemsList.Add(new Item(name, type, BuildIngredients(name, type, blueprintPath), "Companions", GetLocalIconPath(sentinel.Icon), false));
 			}
 		} catch (Exception ex) {
 			MessageBox.Show("Error", "Failed to load exports: " + ex.Message);
@@ -410,10 +385,10 @@ public static class GameData
 
 	public static async Task ExtractGameInfo()
 	{
-		Directory.CreateDirectory(GameData.appDataDir);
+		Directory.CreateDirectory(AppData.AppDataDir);
 		bool isWindows = OperatingSystem.IsWindows();
 		var exeFileName = isWindows ? "warframe-api-helper.exe" : "warframe-api-helper";
-		var exePath = Path.Combine(GameData.appDataDir, exeFileName);
+		var exePath = Path.Combine(AppData.AppDataDir, exeFileName);
 		if (!File.Exists(exePath)) {
 			if (!await MessageBox.AskYesNo("Download required component", "Do you want to download warframe-api-helper from its official GitHub repository?")) {
 				return;
@@ -422,19 +397,16 @@ public static class GameData
 			string url = isWindows
 				? "https://github.com/Sainan/warframe-api-helper/releases/download/1.1.1/warframe-api-helper.exe"
 				: "https://github.com/Sainan/warframe-api-helper/releases/download/1.1.1/Linux.zip";
-			var tempPath = Path.Combine(GameData.appDataDir, Path.GetRandomFileName());
+			var tempPath = Path.Combine(AppData.AppDataDir, Path.GetRandomFileName());
 			try {
-				using var download = await GameData.httpClient.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
-				download.EnsureSuccessStatusCode();
-				await using (var inStream = await download.Content.ReadAsStreamAsync())
-				await using (var outStream = File.Create(tempPath)) {
-					await inStream.CopyToAsync(outStream);
-				}
+				using var inStream = await AppData.GetStreamAsync(url);
+				using var outStream = File.Create(tempPath);
+				await inStream.CopyToAsync(outStream);
 
 				if (!isWindows && url.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)) {
 					try {
-						System.IO.Compression.ZipFile.ExtractToDirectory(tempPath, GameData.appDataDir);
-						var extracted = Directory.EnumerateFiles(GameData.appDataDir, "warframe-api-helper*", SearchOption.AllDirectories)
+						System.IO.Compression.ZipFile.ExtractToDirectory(tempPath, AppData.AppDataDir);
+						var extracted = Directory.EnumerateFiles(AppData.AppDataDir, "warframe-api-helper*", SearchOption.AllDirectories)
 							.FirstOrDefault(f => Path.GetFileName(f).StartsWith("warframe-api-helper", StringComparison.Ordinal)) ?? throw new FileNotFoundException("Extracted helper not found.");
 						if (File.Exists(exePath)) File.Delete(exePath);
 						File.Move(extracted, exePath);
@@ -477,7 +449,7 @@ public static class GameData
 		using var process = new Process {
 			StartInfo = new ProcessStartInfo {
 				FileName = exePath,
-				WorkingDirectory = GameData.appDataDir,
+				WorkingDirectory = AppData.AppDataDir,
 				UseShellExecute = false,
 				RedirectStandardOutput = true,
 				RedirectStandardError = true,
@@ -507,14 +479,12 @@ public static class GameData
 
 	public static async Task<RewardInfo> GetItemData(string itemName)
 	{
-		warframeMarketItems.TryGetValue(itemName, out var marketInfo);
+		WarframeMarketItems.TryGetValue(itemName, out var marketInfo);
 		var rewardInfo = new RewardInfo(itemName);
 		try {
 			if (!string.IsNullOrEmpty(marketInfo.slug)) {
 				rewardInfo.Ducats = marketInfo.ducats;
-				var resp = await httpClient.GetAsync($"https://api.warframe.market/v2/orders/item/{marketInfo.slug}/top");
-				resp.EnsureSuccessStatusCode();
-				using var stream = await resp.Content.ReadAsStreamAsync();
+				using var stream = await AppData.GetStreamAsync($"https://api.warframe.market/v2/orders/item/{marketInfo.slug}/top");
 				using var doc = await JsonDocument.ParseAsync(stream);
 
 				if (doc.RootElement.TryGetProperty("data", out var data) && data.TryGetProperty("sell", out var sell) &&
@@ -530,5 +500,17 @@ public static class GameData
 		}
 
 		return rewardInfo;
+	}
+
+	public static long XpToMaster(string type)
+	{
+		int levelCap = 30;
+		if (UniquelevelCaps.Contains(type)) {
+			levelCap = 40;
+		}
+
+		bool isWarframe = type.Contains("/Lotus/Powersuits/", StringComparison.Ordinal);
+		long baseXp = isWarframe ? 1000L : 500L;
+		return baseXp * (long)levelCap * (long)levelCap;
 	}
 }
