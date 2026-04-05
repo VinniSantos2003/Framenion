@@ -97,11 +97,13 @@ public static class GameData
 		if (string.IsNullOrEmpty(icon)) return "";
 		if (icon.Contains("/CraftingComponents/")) {
 			return Path.Combine(AppData.IconsCacheDir, icon.Split("/CraftingComponents/")[1]);
+		} else if (icon.Contains("/AvatarImages/")) {
+			return Path.Combine(AppData.IconsCacheDir, icon.Split("/AvatarImages/")[1]);
 		}
 		return Path.Combine(AppData.IconsCacheDir, icon.Split('/').Last());
 	}
 
-	private static async Task DownloadIconAsync(string icon)
+	public static async Task DownloadIconAsync(string icon)
 	{
 		var iconPath = GetLocalIconPath(icon);
 		if (File.Exists(iconPath)) return;

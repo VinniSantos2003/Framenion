@@ -224,18 +224,22 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 		root.TryGetProperty("PlayerLevel", out var mr);
 		var mr_str = (mr.GetUInt16() > 30) ? "L" + (mr.GetUInt16() - 30) : mr.ToString();
 		masteryText = mr_str;
-		if (GameData.ExportTextIcons.TryGetValue($"RANK_{mr}", out var rankIconEl)) {
-			using var stream = await AppData.GetStreamAsync(rankIconEl);
-			masteryIcon = new Bitmap(stream);
+		if (GameData.ExportTextIcons.TryGetValue($"RANK_{mr}", out var rankIcon)) {
+			await GameData.DownloadIconAsync(rankIcon);
+			var rank_path = GameData.GetLocalIconPath(rankIcon);
+			masteryIcon = new Bitmap(rank_path);
 		}
 
 		root.TryGetProperty("ActiveAvatarImageType", out var icon_path);
 		using var icon_doc = await AppData.GetStreamAsync(icon_path.ToString());
 		using var glyph_doc = await JsonDocument.ParseAsync(icon_doc);
-		if (glyph_doc.RootElement.ValueKind == JsonValueKind.Object) {
-			glyph_doc.RootElement.TryGetProperty("icon", out var icon_url);
-			using var stream = await AppData.GetStreamAsync(icon_url.ToString());
-			playerIcon = new Bitmap(stream);
+		if (glyph_doc.RootElement.ValueKind == JsonValueKind.Object && glyph_doc.RootElement.TryGetProperty("icon", out var icon)) {
+			var icon_url = icon.GetString();
+			if (icon_url != null) {
+				await GameData.DownloadIconAsync(icon_url);
+				var glyph_path = GameData.GetLocalIconPath(icon_url);
+				playerIcon = new Bitmap(glyph_path);
+			}
 		}
 
 		if (!root.TryGetProperty("MiscItems", out var miscEl) ||
