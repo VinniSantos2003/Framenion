@@ -35,7 +35,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 	private string currentRelicsFilter = "All";
 	private string currentFissureFilter = "Normal";
 
-	private readonly string EElog = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Warframe/EE.log");
 	private readonly string inventoryFile = Path.Combine(AppData.AppDataDir, "inventory.json");
 	private readonly string notifiedFissuresFile = Path.Combine(AppData.AppDataDir, "notified_fissures.txt");
 
@@ -228,7 +227,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 			return;
 		}
 
-		string playerName = "";
 		string platinumText = "";
 		string creditsText = "";
 		string masteryText = "";
@@ -239,13 +237,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 		using var doc = await JsonDocument.ParseAsync(inventory);
 		var root = doc.RootElement;
 		if (root.ValueKind != JsonValueKind.Object) return;
-
-		if (AppData.AppSettings.EnableEELogRead) {
-			var loggedInName = ReadAccountName();
-			if (!string.IsNullOrWhiteSpace(loggedInName)) {
-				playerName = loggedInName;
-			}
-		}
 
 		if (root.TryGetProperty("PremiumCredits", out var platinum) && platinum.TryGetInt64(out var p)) {
 			platinumText = p.ToString("N0");
@@ -363,7 +354,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 		}
 
 		await Dispatcher.UIThread.InvokeAsync(() => {
-			if (!string.IsNullOrWhiteSpace(playerName)) PlayerName.Text = playerName;
 			PlatinumText.Text = platinumText;
 			CreditsText.Text = creditsText;
 			MasteryText.Text = masteryText;
@@ -376,34 +366,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 			}
 			RefreshItemsList();
 		});
-	}
-
-	private string ReadAccountName()
-	{
-		if (!File.Exists(EElog)) return "";
-
-		const string marker = "Logged in ";
-		var fileInfo = new FileInfo(EElog);
-		long fileLength = fileInfo.Length;
-		using var fs = new FileStream(EElog, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-		using var mmf = MemoryMappedFile.CreateFromFile(fs, null, 0, MemoryMappedFileAccess.Read, HandleInheritability.None, false);
-		using var stream = mmf.CreateViewStream(0, fileLength, MemoryMappedFileAccess.Read);
-		using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
-
-		string? line;
-		while ((line = reader.ReadLine()) != null) {
-			int idx = line.IndexOf(marker, StringComparison.Ordinal);
-			if (idx >= 0) {
-				var payload = line[(idx + marker.Length)..].Trim();
-				var open = payload.LastIndexOf('(');
-				if (open > 0) {
-					var name = payload[..open].Trim();
-					if (name.Length > 0) return name.TrimEnd('-', ':').Trim();
-				}
-			}
-		}
-
-		return "";
 	}
 
 	private void UpdateFissureTimers()

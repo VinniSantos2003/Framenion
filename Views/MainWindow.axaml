@@ -34,8 +34,6 @@
                             <Image Name="MasteryIcon" Width="32" Height="32" VerticalAlignment="Center"/>
 
                             <TextBlock Name="MasteryText" VerticalAlignment="Center" FontWeight="Bold" Foreground="{DynamicResource PrimaryForegroundBrush}"/>
-
-                            <TextBlock Name="PlayerName" VerticalAlignment="Center" FontWeight="Bold" Foreground="{DynamicResource PrimaryForegroundBrush}"/>
                         </StackPanel>
 
                         <StackPanel Orientation="Horizontal" Spacing="5">
