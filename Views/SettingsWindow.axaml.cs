@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using framenion.Src;
 using System;
 using System.Threading.Tasks;
@@ -48,6 +49,7 @@ public partial class SettingsWindow : Window
 		settings.OverlayOffset = (int)(OverlayOffset.Value ?? settings.OverlayOffset);
 		settings.ApplyToApplicationResources();
 
+		var originalBackground = SaveButton.Background;
 		try {
 			await settings.SaveAsync();
 			if (settings.EnableEELogRead) {
@@ -55,7 +57,11 @@ public partial class SettingsWindow : Window
 			} else {
 				AppData.Monitor?.Stop();
 			}
-			ToastWindow.ShowToast("Settings", "Settings saved successfully.", TimeSpan.FromSeconds(3), ToastAnchor.TopRightOfOwnerWindow);
+			SaveButton.Content = "Saved";
+			SaveButton.Background = Brush.Parse("#33cc33");
+			await Task.Delay(2000);
+			SaveButton.Content = "Save";
+			SaveButton.Background = originalBackground;
 		} catch (Exception ex) {
 			MessageBox.Show("Error", $"Failed to save settings: {ex.Message}");
 		}

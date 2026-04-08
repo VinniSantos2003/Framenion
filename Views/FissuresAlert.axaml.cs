@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Media;
 using framenion.Src;
 using System;
 using System.Collections.Generic;
@@ -7,6 +8,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading.Tasks;
 
 namespace framenion;
 
@@ -75,8 +77,9 @@ public partial class FissuresAlert : Window
 		}
 	}
 
-	private void Save_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+	private async void Save_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
 	{
+		var originalBackground = SaveButton.Background;
 		try {
 			using var fs = File.Create(dataFilePath);
 			var options = new JsonWriterOptions { Indented = true };
@@ -92,7 +95,11 @@ public partial class FissuresAlert : Window
 			}
 			writer.WriteEndArray();
 			writer.Flush();
-			ToastWindow.ShowToast("Fissure Alert List", "Saved", TimeSpan.FromSeconds(3), ToastAnchor.TopRightOfOwnerWindow);
+			SaveButton.Content = "Saved";
+			SaveButton.Background = Brush.Parse("#33cc33");
+			await Task.Delay(2000);
+			SaveButton.Content = "Save";
+			SaveButton.Background = originalBackground;
 		} catch (Exception ex) {
 			MessageBox.Show("Error", "Failed to save filters: " + ex.Message);
 		}

@@ -1,7 +1,6 @@
-using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Interactivity;
+using framenion.Src;
 using System.Threading.Tasks;
 
 namespace framenion;
@@ -33,7 +32,7 @@ public partial class MessageBox : Window
 	public static void Show(string title, string message)
 	{
 		var msgBox = new MessageBox(message, title, showCancelButton: false);
-		var owner = GetOwnerWindow();
+		var owner = AppData.MainWindow;
 		if (owner != null && owner.IsVisible) {
 			_ = msgBox.ShowDialog(owner);
 		} else {
@@ -44,25 +43,11 @@ public partial class MessageBox : Window
 	public static async Task<bool> AskYesNo(string title, string message, string okButtonText = "Yes", string cancelButtonText = "No")
 	{
 		var msgBox = new MessageBox(message, title, showCancelButton: true, okButtonText: okButtonText, cancelButtonText: cancelButtonText);
-		var owner = GetOwnerWindow();
+		var owner = AppData.MainWindow;
 		if (owner != null && owner.IsVisible) {
 			return (await msgBox.ShowDialog<bool?>(owner)) ?? false;
 		}
 		return false;
-	}
-
-	private static Window? GetOwnerWindow()
-	{
-		if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
-			return null;
-
-		var windows = desktop.Windows;
-		foreach (var w in windows) {
-			if (w.IsActive)
-				return w;
-		}
-
-		return desktop.MainWindow ?? (windows.Count > 0 ? windows[0] : null);
 	}
 
 	private void Ok_Click(object? sender, RoutedEventArgs e) => Close(true);

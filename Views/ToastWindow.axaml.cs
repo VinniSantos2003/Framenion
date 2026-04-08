@@ -1,83 +1,80 @@
 using Avalonia;
 using Avalonia.Animation;
 using Avalonia.Controls;
-using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Media;
+using Avalonia.Media.Imaging;
 using Avalonia.Styling;
+using framenion.Src;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace framenion;
 
 public enum ToastAnchor
 {
-	BottomRightOfScreen,
-	TopRightOfScreen,
-	BottomRightOfOwnerWindow,
-	TopRightOfOwnerWindow
+	BottomRight,
+	TopRight,
 }
 
 public partial class ToastWindow : Window
 {
-	private static readonly Lock gate = new();
-	private static readonly List<ToastWindow> active = [];
-	private static int defaultMargin = 12;
-	private static int defaultSpacing = 10;
-	private ToastAnchor anchor = ToastAnchor.BottomRightOfScreen;
+	private static readonly List<ToastWindow> activeToasts = [];
+	private const int StackSpacing = 8;
 
-	private static readonly Animation FadeIn = new() {
-		Duration = TimeSpan.FromMilliseconds(140),
-		Children = {
-			new KeyFrame { Cue = new Cue(0d), Setters = { new Setter(OpacityProperty, 0d) } },
-			new KeyFrame { Cue = new Cue(1d), Setters = { new Setter(OpacityProperty, 1d) } },
-		}
-	};
+	public string ToastTitle { get; } = string.Empty;
+	public string Body { get; } = string.Empty;
 
-	private static readonly TimeSpan SlideOutDuration = TimeSpan.FromMilliseconds(220);
+	private const int DefaultMargin = 12;
+	private const int SlideDurationMs = 250;
 
 	public ToastWindow()
 	{
 		InitializeComponent();
-		RenderTransform ??= new TranslateTransform();
-		RenderTransformOrigin = new RelativePoint(0, 0, RelativeUnit.Relative);
-		PointerPressed += async (_, _) => await DismissAsync(reposition: true);
-		Closed += (_, _) => OnToastClosed(this);
+		DataContext = this;
 	}
 
-	public static void ShowToast(string title, string body, TimeSpan? duration = null, ToastAnchor anchor = ToastAnchor.BottomRightOfScreen,
-		int margin = 12,
-		int spacing = 10)
+	public ToastWindow(string title, string body, Bitmap? icon = null)
 	{
-		var owner = GetOwnerWindow();
-		if (owner == null) return;
-
-		duration ??= TimeSpan.FromSeconds(6);
-		defaultMargin = margin;
-		defaultSpacing = spacing;
-
-		var toastOwner = NormalizeToastOwner(owner, anchor);
-		var toast = new ToastWindow {
-			Topmost = true,
-			Owner = owner
-		};
-		toast.TitleText.Text = title;
-		toast.BodyText.Text = body;
-		toast.anchor = anchor;
-
-		try {
-			toast.ShowActivated = false;
-		} catch { }
-
-		lock (gate) {
-			active.Add(toast);
+		InitializeComponent();
+		ToastTitle = title;
+		Body = body;
+		if (icon != null) {
+			IconImage.Source = icon;
 		}
 
+		DataContext = this;
+		RenderTransform = new TranslateTransform();
+		RenderTransformOrigin = new RelativePoint(0, 0, RelativeUnit.Relative);
+		PointerPressed += async (_, _) => await DismissAsync();
+	}
+
+	public static async void Show(string title, string body, ToastAnchor? anchor = null, TimeSpan ? duration = null, Bitmap? icon = null)
+	{
+		var owner = AppData.MainWindow;
+		if (owner == null) return;
+
+		duration ??= TimeSpan.FromSeconds(5);
+
+		var toast = new ToastWindow(title, body, icon);
 		toast.Opened += async (_, _) => {
-			RepositionToasts(toastOwner, anchor, margin, spacing);
-			await FadeIn.RunAsync(toast, default);
+			lock (activeToasts) {
+				activeToasts.Add(toast);
+			}
+
+			toast.ApplyStackedPosition(anchor ?? ToastAnchor.BottomRight);
+			var deltaX = toast.GetSlideDistance();
+			await CreateSlideAnimation(deltaX, SlideDurationMs, slideIn: true).RunAsync(toast);
+		};
+
+		toast.Closed += (_, _) =>
+		{
+			lock (activeToasts) {
+				activeToasts.Remove(toast);
+				foreach (var toast in activeToasts) {
+					toast.ApplyStackedPosition(anchor ?? ToastAnchor.BottomRight);
+				}
+			}
 		};
 
 		if (owner.IsVisible) {
@@ -85,132 +82,84 @@ public partial class ToastWindow : Window
 		} else {
 			toast.Show();
 		}
-		_ = AutoCloseAsync(toast, duration.Value);
-	}
 
-	private static async Task AutoCloseAsync(ToastWindow toast, TimeSpan duration)
-	{
-		await Task.Delay(duration);
 		if (!toast.IsVisible) return;
-
-		await toast.DismissAsync(reposition: true);
+		await Task.Delay(duration.Value + TimeSpan.FromMilliseconds(SlideDurationMs * 2));
+		await toast.DismissAsync();
 	}
 
-	private async Task DismissAsync(bool reposition)
+	private async Task DismissAsync()
 	{
-		if (!IsVisible)
-			return;
+		if (!IsVisible) return;
 
-		// Slide the *content* right, then close the window.
-		double deltaX = (Width > 0 ? Width : Bounds.Width);
-		if (deltaX <= 0) {
-			deltaX = 360;
-		}
-		deltaX += defaultMargin;
-
-		var slideOutRight = CreateSlideOutRight(deltaX);
-
-		await slideOutRight.RunAsync(this, default);
-
+		var deltaX = GetSlideDistance();
+		await CreateSlideAnimation(deltaX, SlideDurationMs / 2, slideIn: false).RunAsync(this);
 		if (IsVisible) {
 			Close();
 		}
-
-		if (reposition && Owner is Window owner) {
-			RepositionToasts(owner, ToastAnchor.BottomRightOfScreen, defaultMargin, defaultSpacing);
-		}
 	}
 
-	private static Animation CreateSlideOutRight(double deltaX) => new() {
-		Duration = SlideOutDuration,
-		Children = {
-			new KeyFrame {
-				Cue = new Cue(0d),
-				Setters = { new Setter(TranslateTransform.XProperty, 0d) }
-			},
-			new KeyFrame {
-				Cue = new Cue(1d),
-				Setters = { new Setter(TranslateTransform.XProperty, deltaX) }
-			},
-		}
-	};
-
-	private static void OnToastClosed(ToastWindow toast)
+	private static Animation CreateSlideAnimation(double deltaX, int durationMs, bool slideIn)
 	{
-		lock (gate) {
-			active.Remove(toast);
-		}
+		return new Animation {
+			Duration = TimeSpan.FromMilliseconds(durationMs),
+			Children = {
+				new KeyFrame {
+					Cue = new Cue(0d),
+					Setters = {
+						new Setter(TranslateTransform.XProperty, slideIn ? deltaX : 0d)
+					}
+				},
+				new KeyFrame {
+					Cue = new Cue(1d),
+					Setters = {
+						new Setter(TranslateTransform.XProperty, slideIn ? 0d : deltaX)
+					}
+				}
+			}
+		};
 	}
 
-	private static void RepositionToasts(Window owner, ToastAnchor anchor, int margin, int spacing)
+	private double GetSlideDistance()
 	{
-		ToastWindow[] toasts;
-		lock (gate) {
-			toasts = [.. active.Where(t => t.IsVisible)];
-		}
-
-		if (toasts.Length == 0) return;
-
-		PixelRect area;
-		if (anchor is ToastAnchor.BottomRightOfOwnerWindow or ToastAnchor.TopRightOfOwnerWindow) {
-			var ownerPos = owner.Position;
-			var ownerSize = owner.Bounds.Size;
-
-			var scale = owner.RenderScaling;
-			var w = (int)Math.Ceiling(ownerSize.Width * scale);
-			var h = (int)Math.Ceiling(ownerSize.Height * scale);
-			area = new PixelRect(ownerPos, new PixelSize(w, h));
-		} else {
-			var screen = owner.Screens.ScreenFromWindow(owner) ?? owner.Screens.Primary;
-			if (screen is null) return;
-
-			area = screen.WorkingArea;
-		}
-
-		bool stackDown = anchor is ToastAnchor.TopRightOfScreen or ToastAnchor.TopRightOfOwnerWindow;
-		for (int i = 0; i < toasts.Length; i++) {
-			var toast = toasts[i];
-			int toastW = (int)Math.Ceiling(toast.Width);
-			int toastH = (int)Math.Ceiling(toast.Height);
-			int x = area.X + area.Width - toastW - margin;
-			// top-right, stack downward or bottom-right, stack upward
-			int y = stackDown ? area.Y + margin + i * (toastH + spacing) : area.Y + area.Height - margin - toastH - i * (toastH + spacing);
-			toast.Position = new PixelPoint(x, y);
-		}
+		var width = Width > 0 ? Width : Bounds.Width;
+		return width + DefaultMargin;
 	}
 
-	private static Window NormalizeToastOwner(Window owner, ToastAnchor anchor)
+	private void ApplyStackedPosition(ToastAnchor anchor)
 	{
-		if (anchor is not (ToastAnchor.BottomRightOfOwnerWindow or ToastAnchor.TopRightOfOwnerWindow)) return owner;
+		var screen = Screens.ScreenFromVisual(this);
+		if (screen == null) return;
 
-		Window? current = owner;
-		while (current is not null) {
-			if (current is MainWindow main) return main;
+		var workingArea = screen.WorkingArea;
+		double width = Bounds.Width > 0 ? Bounds.Width : Width;
+		double height = Bounds.Height > 0 ? Bounds.Height : 100;
+		int right = workingArea.X + workingArea.Width;
+		int bottom = workingArea.Y + workingArea.Height;
 
-			current = current.Owner as Window;
+		int index;
+		lock (activeToasts) {
+			index = activeToasts.IndexOf(this);
 		}
 
-		current = owner;
-		Window root = owner;
-		while (current?.Owner is Window parent) {
-			root = parent;
-			current = parent;
+		int offsetY = index * ((int)height + StackSpacing);
+		PixelPoint position;
+		switch (anchor) {
+			case ToastAnchor.BottomRight:
+				position = new PixelPoint(
+					right - (int)width - DefaultMargin,
+					bottom - (int)height - DefaultMargin - offsetY
+				);
+				break;
+			case ToastAnchor.TopRight:
+				position = new PixelPoint(
+					right - (int)width - DefaultMargin,
+					workingArea.Y + DefaultMargin + offsetY
+				);
+				break;
+			default:
+				return;
 		}
-
-		return root;
-	}
-
-	private static Window? GetOwnerWindow()
-	{
-		if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
-			return null;
-
-		var windows = desktop.Windows;
-		foreach (var w in windows) {
-			if (w.IsActive)
-				return w;
-		}
-
-		return desktop.MainWindow ?? (windows.Count > 0 ? windows[0] : null);
+		Position = position;
 	}
 }

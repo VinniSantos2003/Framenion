@@ -34,7 +34,7 @@ public partial class RelicRewardWindow : Window
 
 	public static async Task Display(RewardInfo reward, int x, int y, int width)
 	{
-		var owner = GetOwnerWindow();
+		var owner = AppData.MainWindow;
 		if (owner == null) return;
 
 		await Dispatcher.UIThread.InvokeAsync(() => {
@@ -61,19 +61,5 @@ public partial class RelicRewardWindow : Window
 				});
 			});
 		});
-	}
-
-	private static Window? GetOwnerWindow()
-	{
-		if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
-			return null;
-
-		var windows = desktop.Windows;
-		foreach (var w in windows) {
-			if (w.IsActive)
-				return w;
-		}
-
-		return desktop.MainWindow ?? (windows.Count > 0 ? windows[0] : null);
 	}
 }

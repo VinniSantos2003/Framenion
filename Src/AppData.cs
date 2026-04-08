@@ -1,4 +1,5 @@
-﻿using Avalonia.Media.Imaging;
+﻿using Avalonia.Controls;
+using Avalonia.Media.Imaging;
 using Sdcb.PaddleOCR;
 using System;
 using System.Collections.Concurrent;
@@ -12,6 +13,8 @@ namespace framenion.Src;
 
 public class AppData
 {
+	public static Window? MainWindow { get; set; }
+
 	public static string AppDataDir { get; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Framenion");
 	public static string CacheDir { get; } = Path.Combine(AppDataDir, "cache");
 	public static string IconsCacheDir { get; } = Path.Combine(CacheDir, "icons");

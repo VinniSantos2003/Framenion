@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Collections;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media.Imaging;
@@ -26,9 +27,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 {
 	public ObservableCollection<Item> displayedItems = [];
 	public ObservableCollection<VoidFissure> displayedFissures = [];
+	public ObservableCollection<Relic> displayedRelics = [];
 
 	private string searchText = string.Empty;
+	private string searchRelicsText = string.Empty;
 	private string currentItemsFilter = "All";
+	private string currentRelicsFilter = "All";
 	private string currentFissureFilter = "Normal";
 
 	private readonly string EElog = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Warframe/EE.log");
@@ -79,6 +83,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 		DataContext = this;
 		ItemsList.ItemsSource = displayedItems;
 		FissuresList.ItemsSource = displayedFissures;
+		RelicsList.ItemsSource = displayedRelics;
 
 		AppData.Monitor?.OnProcessStateChanged += running => {
 			Dispatcher.UIThread.Post(() => {
@@ -123,6 +128,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 		searchDebounce?.Cancel();
 		searchDebounce?.Dispose();
 		AppData.Monitor?.Dispose();
+		if (Application.Current is { } app) {
+			var icons = TrayIcon.GetIcons(app);
+			if (icons == null) {
+				return;
+			}
+
+			foreach (var icon in icons) {
+				(icon as IDisposable)?.Dispose();
+			}
+		}
 	}
 
 	protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -130,7 +145,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 		base.OnPropertyChanged(change);
 		if (change.Property == WindowStateProperty && change.NewValue is WindowState newState && newState == WindowState.Minimized) {
 			Hide();
-			ToastWindow.ShowToast("Framenion", "Application minimized to system tray", TimeSpan.FromSeconds(3));
+			ToastWindow.Show("Framenion", "Application minimized to system tray");
 		}
 	}
 
@@ -177,7 +192,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 			using var json = JsonDocument.Parse(resp);
 			string latestHash = json.RootElement.GetProperty("sha").GetString() ?? "";
 
-			string localHash =  "";
+			string localHash = "";
 			if (File.Exists(hashPath)) {
 				localHash = (await File.ReadAllTextAsync(hashPath)).Trim();
 			}
@@ -185,7 +200,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 			bool needsUpdate = !string.IsNullOrEmpty(latestHash) && !string.Equals(localHash.Trim(), latestHash, StringComparison.Ordinal);
 			if (needsUpdate) {
 				await File.WriteAllTextAsync(hashPath, latestHash);
-				ToastWindow.ShowToast("Data initialization", "A new update has been found, updating cache");
+				ToastWindow.Show("Data initialization", "A new update has been found, updating cache");
 			}
 
 			string[] firstLoad = ["dict.en", "ExportRegions", "ExportMissionTypes", "ExportFactions"];
@@ -195,7 +210,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 				await VoidFissure.LoadVoidFissures();
 				await RefreshFissuresList();
 			});
-			string[] secondLoad = ["ExportWarframes", "ExportRecipes", "ExportWeapons", "ExportResources", "ExportMisc", "ExportSentinels", "ExportTextIcons"];
+			string[] secondLoad = ["ExportWarframes", "ExportRecipes", "ExportWeapons", "ExportResources", "ExportMisc", "ExportSentinels", "ExportTextIcons", "ExportRelics", "ExportRewards"];
 			loadTasks = secondLoad.Select(f => GameData.LoadFile(f, AppData.CacheDir, needsUpdate));
 			await Task.WhenAll(loadTasks);
 			await GameData.LoadWFMarketData(needsUpdate);
@@ -299,6 +314,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 			}
 		}
 
+		foreach (var relic in GameData.RelicList) {
+			if (miscByType.TryGetValue(relic.Type, out var relicCount)) {
+				relic.OwnedCount = relicCount;
+			}
+		}
+
+		var ownedRelics = GameData.RelicList.Where(r => r.OwnedCount > 0);
 		foreach (var item in GameData.ItemsList) {
 			var resultType = item.Type;
 
@@ -310,6 +332,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 			foreach (var ingred in item.Ingredients) {
 				var type = ingred.ItemType;
 				if (!miscByType.TryGetValue(type, out var ingred_count) && !recipesByType.TryGetValue(ingred.RecipeKey, out ingred_count)) {
+					if (ingred.Name.Contains("Prime")) {
+						foreach (var relic in ownedRelics) {
+							if (relic.Rewards.Any(r => r.Name.Contains(ingred.Name))) {
+								ingred.BorderColor = "#FFD700";
+								break;
+							}
+						}
+					}
 					continue;
 				}
 
@@ -324,26 +354,28 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 					}
 				}
 
-				if (canCraft && ingred.BackgroundColor == "#252525") ingred.BorderColor = "#4A9EFF";
+				if (canCraft && ingred.BackgroundColor == "#252525") {
+					ingred.BorderColor = "#4A9EFF";
+				}
 			}
 
 			if (item.Ingredients.Count > 0 && item.Ingredients.All(i => i.OwnedCount >= i.Count)) item.BorderColor = "#4A9EFF";
-
-			await Dispatcher.UIThread.InvokeAsync(() => {
-				if (!string.IsNullOrWhiteSpace(playerName)) PlayerName.Text = playerName;
-				PlatinumText.Text = platinumText;
-				CreditsText.Text = creditsText;
-				MasteryText.Text = masteryText;
-
-				if (masteryIcon != null) {
-					MasteryIcon.Source = masteryIcon;
-				}
-				if (playerIcon != null) {
-					PlayerIcon.Source = playerIcon;
-				}
-				RefreshItemsList();
-			});
 		}
+
+		await Dispatcher.UIThread.InvokeAsync(() => {
+			if (!string.IsNullOrWhiteSpace(playerName)) PlayerName.Text = playerName;
+			PlatinumText.Text = platinumText;
+			CreditsText.Text = creditsText;
+			MasteryText.Text = masteryText;
+
+			if (masteryIcon != null) {
+				MasteryIcon.Source = masteryIcon;
+			}
+			if (playerIcon != null) {
+				PlayerIcon.Source = playerIcon;
+			}
+			RefreshItemsList();
+		});
 	}
 
 	private string ReadAccountName()
@@ -428,6 +460,33 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 		}
 	}
 
+	private void RefreshRelicsList()
+	{
+		displayedRelics.Clear();
+		var filtered = GameData.RelicList.AsEnumerable();
+		filtered = currentRelicsFilter switch {
+			"Lith" => filtered.Where(r => r.Era == "Lith"),
+			"Meso" => filtered.Where(r => r.Era == "Meso"),
+			"Neo" => filtered.Where(r => r.Era == "Meso"),
+			"Axi" => filtered.Where(r => r.Era == "Axi"),
+			"Requiem" => filtered.Where(r => r.Era == "Requiem"),
+			_ => filtered,
+		};
+
+		if (!string.IsNullOrWhiteSpace(searchRelicsText)) {
+			var q = searchRelicsText.Trim();
+
+			filtered = filtered.Where(r =>
+				r.Name.Contains(q, StringComparison.OrdinalIgnoreCase) ||
+				(r.Rewards?.Any(reward => reward.Name.Contains(q, StringComparison.OrdinalIgnoreCase)) ?? false));
+		}
+
+		filtered = filtered.OrderBy(r => GameData.GetRelicSortKey(r.Quality)).ThenByDescending(r=> r.OwnedCount > 0);
+		foreach (var relic in filtered) {
+			displayedRelics.Add(relic);
+		}
+	}
+
 	private async Task RefreshFissuresList()
 	{
 		displayedFissures.Clear();
@@ -463,7 +522,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 			? $"{(matches[0].IsHard ? "Steel Path" : "Normal")} {matches[0].MissionType} {matches[0].Tier} ends in {matches[0].TimeRemaining}"
 			: string.Join(Environment.NewLine, matches.Select(f => $"{(f.IsHard ? "Steel Path" : "Normal")} {f.MissionType} {f.Tier} ends in {f.TimeRemaining}"));
 
-		ToastWindow.ShowToast(title, body, TimeSpan.FromSeconds(8));
+		ToastWindow.Show(title, body, duration: TimeSpan.FromSeconds(8), icon: GameData.GetOrCreateBitmap(Path.Combine(AppContext.BaseDirectory, "assets", "void_fissure.png")));
 	}
 
 	private async Task LoadNotifiedFissures()
@@ -496,16 +555,19 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 	private void OnItemsClick(object? sender, RoutedEventArgs e)
 	{
 		ItemsButton.Classes.Set("selected", true);
-		InventoryButton.Classes.Set("selected", false);
+		RelicsButton.Classes.Set("selected", false);
 		ItemsContent.IsVisible = true;
+		RelicsContent.IsVisible = false;
 		RefreshItemsList();
 	}
 
-	private void OnInventoryClick(object? sender, RoutedEventArgs e)
+	private void OnRelicsClick(object? sender, RoutedEventArgs e)
 	{
 		ItemsButton.Classes.Set("selected", false);
-		InventoryButton.Classes.Set("selected", true);
+		RelicsButton.Classes.Set("selected", true);
 		ItemsContent.IsVisible = false;
+		RelicsContent.IsVisible = true;
+		RefreshRelicsList();
 	}
 
 	private void OnFilterClick(object? sender, RoutedEventArgs e)
@@ -527,6 +589,21 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 		RefreshItemsList();
 	}
 
+	private void OnFilterRelicClick(object? sender, RoutedEventArgs e)
+	{
+		if (sender is not Button button) return;
+
+		FilterAllRelicsButton.Classes.Set("selected", false);
+		FilterLithButton.Classes.Set("selected", false);
+		FilterMesoButton.Classes.Set("selected", false);
+		FilterNeoButton.Classes.Set("selected", false);
+		FilterAxiButton.Classes.Set("selected", false);
+		FilterRequiemButton.Classes.Set("selected", false);
+		button.Classes.Set("selected", true);
+		currentRelicsFilter = button.Tag?.ToString() ?? "All";
+		RefreshRelicsList();
+	}
+
 	private async void OnSearchTextChanged(object? sender, TextChangedEventArgs e)
 	{
 		searchDebounce?.Cancel();
@@ -544,6 +621,25 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
 		if (token.IsCancellationRequested) return;
 		RefreshItemsList();
+	}
+
+	private async void OnSearchRelicsTextChanged(object? sender, TextChangedEventArgs e)
+	{
+		searchDebounce?.Cancel();
+		searchDebounce?.Dispose();
+		searchDebounce = new CancellationTokenSource();
+
+		var token = searchDebounce.Token;
+		searchRelicsText = RelicsSearchBox.Text ?? string.Empty;
+
+		try {
+			await Task.Delay(TimeSpan.FromMilliseconds(200), token);
+		} catch (OperationCanceledException) {
+			return;
+		}
+
+		if (token.IsCancellationRequested) return;
+		RefreshRelicsList();
 	}
 
 	private async void OnFissureFilterClick(object? sender, RoutedEventArgs e)

@@ -36,6 +36,7 @@ public static class GameData
 
 	public static List<VoidFissure> Fissures { get; set; } = [];
 	public static List<Item> ItemsList { get; set; } = [];
+	public static List<Relic> RelicList { get; set; } = [];
 
 	public static FrozenDictionary<string, string> Lang { get; set; } = FrozenDictionary<string, string>.Empty;
 	public static FrozenDictionary<string, string> ExportTextIcons { get; set; } = FrozenDictionary<string, string>.Empty;
@@ -44,11 +45,14 @@ public static class GameData
 
 	public static FrozenDictionary<string, (string slug, string ducats)> WarframeMarketItems { get; set; } = FrozenDictionary<string, (string, string)>.Empty;
 	public static FrozenDictionary<string, (string name, RecipeDTO recipe)> ExportRecipes { get; set; } = FrozenDictionary<string, (string, RecipeDTO)>.Empty;
+	public static FrozenDictionary<string, string> ExportRecipeByName { get; set; } = FrozenDictionary<string, string>.Empty;
 	public static FrozenDictionary<string, ResourceDTO> ExportResources { get; set; } = FrozenDictionary<string, ResourceDTO>.Empty;
 	public static FrozenDictionary<string, ItemDTO> ExportWarframes { get; set; } = FrozenDictionary<string, ItemDTO>.Empty;
 	public static FrozenDictionary<string, ItemDTO> ExportWeapons { get; set; } = FrozenDictionary<string, ItemDTO>.Empty;
 	public static FrozenDictionary<string, ItemDTO> ExportSentinels { get; set; } = FrozenDictionary<string, ItemDTO>.Empty;
 	public static FrozenDictionary<string, RegionDTO> ExportRegions { get; set; } = FrozenDictionary<string, RegionDTO>.Empty;
+	public static FrozenDictionary<string, RelicDTO> ExportRelics { get; set; } = FrozenDictionary<string, RelicDTO>.Empty;
+	public static FrozenDictionary<string, List<RewardDTO>> ExportRewards { get; set; } = FrozenDictionary<string, List<RewardDTO>>.Empty;
 
 	public static List<string> UniquelevelCaps { get; set; } = [];
 	public static List<string> PrimeItems { get; set; } = [];
@@ -99,6 +103,8 @@ public static class GameData
 			return Path.Combine(AppData.IconsCacheDir, icon.Split("/CraftingComponents/")[1]);
 		} else if (icon.Contains("/AvatarImages/")) {
 			return Path.Combine(AppData.IconsCacheDir, icon.Split("/AvatarImages/")[1]);
+		} else if (icon.Contains("/Relics/")) {
+			return Path.Combine(AppData.IconsCacheDir, icon.Split("/Relics/")[1]);
 		}
 		return Path.Combine(AppData.IconsCacheDir, icon.Split('/').Last());
 	}
@@ -225,15 +231,17 @@ public static class GameData
 						await using var stream = File.OpenRead(exportCacheFile);
 						using var doc = await JsonDocument.ParseAsync(stream);
 						var builder = new Dictionary<string, (string, RecipeDTO)>(StringComparer.Ordinal);
-
+						var byName = new Dictionary<string, string>(StringComparer.Ordinal);
 						foreach (var r in doc.RootElement.EnumerateObject()) {
 							if (r.Value.TryGetProperty("resultType", out var rt) && rt.GetString() is string rtStr) {
 								var recipe = JsonSerializer.Deserialize(r.Value, ExportJsonContext.Default.RecipeDTO);
 								if (recipe == null) continue;
 								builder[rtStr] = (r.Name, recipe);
+								byName[r.Name] = rtStr;
 							}
 						}
 						ExportRecipes = builder.ToFrozenDictionary();
+						ExportRecipeByName = byName.ToFrozenDictionary();
 						break;
 					}
 				case "ExportRegions":
@@ -286,6 +294,36 @@ public static class GameData
 						}
 						break;
 					}
+				case "ExportRelics":
+					ExportRelics = await Deserialize(exportCacheFile, ExportJsonContext.Default.RelicDTO);
+					break;
+				case "ExportRewards": {
+						await using var stream = File.OpenRead(exportCacheFile);
+						using var doc = await JsonDocument.ParseAsync(stream);
+						var builder = new Dictionary<string, List<RewardDTO>>(StringComparer.Ordinal);
+						foreach (var prop in doc.RootElement.EnumerateObject()) {
+							if (!prop.Name.Contains("/VoidKeyMissionRewards/") && !prop.Name.Contains("/ImmortalRelicRewards/")) {
+								continue;
+							}
+
+							var flatList = new List<RewardDTO>();
+							if (prop.Value.ValueKind == JsonValueKind.Array) {
+								foreach (var outer in prop.Value[0].EnumerateArray()) {
+									var reward = JsonSerializer.Deserialize(outer, ExportJsonContext.Default.RewardDTO);
+									if (reward != null) {
+										flatList.Add(reward);
+									}
+								}
+							}
+
+							if (flatList.Count > 0) {
+								builder[prop.Name] = flatList;
+							}
+						}
+
+						ExportRewards = builder.ToFrozenDictionary(StringComparer.Ordinal);
+						break;
+					}
 			}
 		} catch (Exception ex) {
 			MessageBox.Show("Error", $"Error loading {file}: {ex.Message}");
@@ -335,6 +373,52 @@ public static class GameData
 		return result;
 	}
 
+	private static ObservableCollection<Reward> BuildRewards(string type)
+	{
+		var result = new ObservableCollection<Reward>();
+		if (!ExportRewards.TryGetValue(type, out var rewards)) return result;
+		foreach (var reward in rewards) {
+			var rewardType = reward.Type.Replace("/Lotus/StoreItems/", "/Lotus/");
+			var borderColor = "";
+			switch (reward.Rarity) {
+				case "COMMON":
+					borderColor = "#95543B";
+					break;
+				case "UNCOMMON":
+					borderColor = "#D1CFD1";
+					break;
+				case "RARE":
+					borderColor = "#EED78A";
+					break;
+			}
+
+			if (ExportResources.TryGetValue(rewardType, out var resource)) {
+				result.Add(new Reward(ResolveName(resource.Name), rewardType, GetLocalIconPath(resource.Icon), reward.Count, reward.Rarity, borderColor));
+				continue;
+			}
+
+			if (ExportRecipeByName.TryGetValue(rewardType, out var recipeEntry)) {
+				var recipe = ExportRecipes[recipeEntry].recipe;
+				string displayName = "";
+				string iconPath = "";
+
+				if (ExportResources.TryGetValue(recipe.ResultType, out var associatedResource)) {
+					displayName = ResolveName(associatedResource.Name);
+					iconPath = GetLocalIconPath(associatedResource.Icon);
+				} else {
+					var match = ItemsList.FirstOrDefault(i => string.Equals(i.Type, recipe.ResultType, StringComparison.Ordinal));
+					if (match != null) {
+						displayName = $"{match.Name} Blueprint";
+						iconPath = match.IconPath;
+					}
+				}
+
+				result.Add(new Reward(displayName, rewardType, iconPath, reward.Count, reward.Rarity, borderColor));
+			}
+		}
+		return new ObservableCollection<Reward>(result.OrderBy(r => GetRaritySortKey(r.Rarity)));
+	}
+
 	private static bool ShouldSkipWeapon(string type, ItemDTO weapon)
 	{
 		if (type.Contains("PvPVariant") || type.Contains("Doppelganger")) return true;
@@ -355,6 +439,10 @@ public static class GameData
 				.Concat(ExportSentinels.Where(kvp => !kvp.Key.Contains("/Pets/")))) {
 				iconUrls.Add(element.Icon);
 				foreach (var url in GetIngredientIconUrls(type)) iconUrls.Add(url);
+			}
+
+			foreach (var (type, relic) in ExportRelics) {
+				iconUrls.Add(relic.Icon);
 			}
 			await DownloadIconsAsync(iconUrls);
 
@@ -379,6 +467,26 @@ public static class GameData
 				if (type.Contains("/Pets/")) continue;
 				var name = ResolveName(sentinel.Name);
 				ItemsList.Add(new Item(name, type, BuildIngredients(name, type, blueprintPath), "Companions", GetLocalIconPath(sentinel.Icon), false));
+			}
+
+			foreach (var (type, relic) in ExportRelics) {
+				var quality = relic.Quality;
+				switch (relic.Quality) {
+					case "VPQ_BRONZE":
+						quality = "Intact";
+						break;
+					case "VPQ_SILVER":
+						quality = "Exceptional";
+						break;
+					case "VPQ_GOLD":
+						quality = "Flawless";
+						break;
+					case "VPQ_PLATINUM":
+						quality = "Radiant";
+						break;
+				}
+				var name = $"{relic.Era} {relic.Category} Relic [{quality}]";
+				RelicList.Add(new Relic(name, type, GetLocalIconPath(relic.Icon), relic.Era, quality, BuildRewards(relic.RewardManifest)));
 			}
 		} catch (Exception ex) {
 			MessageBox.Show("Error", "Failed to load exports: " + ex.Message);
@@ -514,5 +622,26 @@ public static class GameData
 		bool isWarframe = type.Contains("/Lotus/Powersuits/", StringComparison.Ordinal);
 		long baseXp = isWarframe ? 1000L : 500L;
 		return baseXp * (long)levelCap * (long)levelCap;
+	}
+
+	public static int GetRelicSortKey(string quality)
+	{
+		return quality switch {
+			"Intact" => 1,
+			"Flawless" => 2,
+			"Exceptional" => 3,
+			"Radiant" => 4,
+			_ => int.MaxValue
+		};
+	}
+
+	public static int GetRaritySortKey(string rarity)
+	{
+		return rarity switch {
+			"COMMON" => 1,
+			"UNCOMMON" => 2,
+			"RARE" => 3,
+			_ => int.MaxValue
+		};
 	}
 }

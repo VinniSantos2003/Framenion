@@ -39,7 +39,7 @@ public class RelicRewardOCR
 				using var screenshot = ScreenCapture.Capture();
 				var rewards = ReadRewards(screenshot);
 				if (rewards.Count == 0) {
-					ToastWindow.ShowToast("No rewards detected", "Could not detect any relic rewards.", TimeSpan.FromSeconds(5));
+					ToastWindow.Show("No rewards detected", "Could not detect any relic rewards.");
 					return;
 				}
 				var rewardInfoTasks = rewards.Select(r => GameData.GetItemData(r.ItemName)).ToArray();

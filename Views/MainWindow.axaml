@@ -18,7 +18,7 @@
                 <!-- Menu Buttons -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
                     <Button Name="ItemsButton" Content="Equipment" Classes="selected" Click="OnItemsClick" Padding="20,10"/>
-                    <Button Name="InventoryButton" Content="Relics" Click="OnInventoryClick" Padding="20,10"/>
+                    <Button Name="RelicsButton" Content="Relics" Click="OnRelicsClick" Padding="20,10"/>
                 </StackPanel>
 
                 <!-- Player Info Panel -->
@@ -295,6 +295,205 @@
                             </ScrollViewer>
                         </Border>
                     </Grid>
+                </Border>
+            </Grid>
+
+            <Grid Grid.Column="0">
+                <!-- Relics Content -->
+                <Border Name="RelicsContent" IsVisible="False" Padding="20">
+                    <Grid RowDefinitions="Auto,Auto,*">
+                        <Grid Grid.Row="0" ColumnDefinitions="*,40,40,40,200" Margin="0,0,0,20">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <Button Name="FilterAllRelicsButton" Click="OnFilterClick"
+                                        Tag="All"
+                                        Classes="selected"
+                                        Padding="8,8"
+                                        ToolTip.Tip="All">
+                                    <Image Source="avares://framenion/assets/all.png" Width="24" Height="24" VerticalAlignment="Center"/>
+                                </Button>
+
+                                <Button Name="FilterLithButton"
+                                        Click="OnFilterRelicClick"
+                                        Tag="Lith"
+                                        Padding="8,8"
+                                        ToolTip.Tip="Lith">
+                                    <Image Source="avares://framenion/assets/lith.png" Width="24" Height="24" VerticalAlignment="Center"/>
+                                </Button>
+                                <Button Name="FilterMesoButton"
+                                        Click="OnFilterRelicClick"
+                                        Tag="Meso"
+                                        Padding="8,8"
+                                        ToolTip.Tip="Meso">
+                                    <Image Source="avares://framenion/assets/meso.png" Width="24" Height="24" VerticalAlignment="Center"/>
+                                </Button>
+                                <Button Name="FilterNeoButton"
+                                        Click="OnFilterRelicClick"
+                                        Tag="Neo"
+                                        Padding="8,8"
+                                        ToolTip.Tip="Neo">
+                                    <Image Source="avares://framenion/assets/neo.png" Width="24" Height="24" VerticalAlignment="Center"/>
+                                </Button>
+                                <Button Name="FilterAxiButton"
+                                        Click="OnFilterRelicClick"
+                                        Tag="Axi"
+                                        Padding="8,8"
+                                        ToolTip.Tip="Axi">
+                                    <Image Source="avares://framenion/assets/axi.png" Width="24" Height="24" VerticalAlignment="Center"/>
+                                </Button>
+                                <Button Name="FilterRequiemButton"
+                                        Click="OnFilterRelicClick"
+                                        Tag="Requiem"
+                                        Padding="8,8"
+                                        ToolTip.Tip="Requiem">
+                                    <Image Source="avares://framenion/assets/requiem.png" Width="24" Height="24" VerticalAlignment="Center"/>
+                                </Button>
+                            </StackPanel>
+
+                        <Button Grid.Column="1"
+                Content="−"
+                Click="OnItemsZoomOutClick"
+                Classes="iconButton"
+                ToolTip.Tip="Zoom out"
+                Padding="10,6"/>
+
+        <Button Grid.Column="2"
+                Content="%"
+                Click="OnItemsZoomResetClick"
+                Classes="iconButton"
+                ToolTip.Tip="Reset zoom"
+                Padding="10,6"/>
+
+        <Button Grid.Column="3"
+                Content="+"
+                Click="OnItemsZoomInClick"
+                Classes="iconButton"
+                ToolTip.Tip="Zoom in"
+                Padding="10,6"/>
+
+                            <TextBox Grid.Column="4"
+                                     Name="RelicsSearchBox"
+                                     Watermark="Search relics..."
+                                     Padding="8,8"
+                                     TextChanged="OnSearchRelicsTextChanged"
+                                     Background="{DynamicResource PanelBackgroundBrush}"
+                                     Foreground="{DynamicResource PrimaryForegroundBrush}"
+                                     BorderBrush="{DynamicResource ControlBorderBrush}"
+                                     BorderThickness="1"
+                                     CornerRadius="4"/>
+                        </Grid>
+
+                        <Border Grid.Row="2"
+                                Background="{DynamicResource PanelBackgroundBrush}"
+                                CornerRadius="8"
+                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                BorderThickness="1">
+
+                            <ScrollViewer Name="RelicsScrollViewer"
+                                          HorizontalScrollBarVisibility="Disabled"
+                                          VerticalScrollBarVisibility="Auto">
+                                <ItemsRepeater Name="RelicsList">
+                                    <ItemsRepeater.Layout>
+                                        <WrapLayout Orientation="Horizontal"/>
+                                    </ItemsRepeater.Layout>
+
+                                    <ItemsRepeater.ItemTemplate>
+                                        <DataTemplate x:DataType="src:Relic">
+                                            <Border Background="{DynamicResource SurfaceBackgroundBrush}"
+                                                    CornerRadius="6"
+                                                    Margin="8"
+                                                    Padding="12"
+                                                    Width="{Binding #RootWindow.ItemsTileWidth}"
+                                                    MinHeight="{Binding #RootWindow.ItemsTileMinHeight}"
+                                                    BorderThickness="2">
+
+                                                <Grid RowDefinitions="Auto,Auto,Auto,*">
+                                                    <!-- Main Icon -->
+                                                    <Grid ColumnDefinitions="Auto,*">
+                                                        <TextBlock Grid.Column="0" IsVisible="{Binding IsCountVisible}">
+                                                            <Run Text="x"/><Run Text="{Binding OwnedCount}"/>
+                                                        </TextBlock>
+                                                        <Image Grid.Column="0" IsVisible="{Binding Unowned}"
+                                                               Width="24" Height="24"
+                                                               HorizontalAlignment="Left"
+                                                               VerticalAlignment="Top"
+                                                               Source="avares://framenion/assets/eye.png">
+                                                        </Image>
+                                                        <Border Grid.Row="0" Grid.Column="1"
+                                                                Width="72" Height="72"
+                                                                HorizontalAlignment="Center"
+                                                                VerticalAlignment="Center"
+                                                                Background="{DynamicResource AppBackgroundBrush}"
+                                                                CornerRadius="4"
+                                                                Margin="0,0,0,8"
+                                                                BorderBrush="{DynamicResource ControlBorderBrush}"
+                                                                BorderThickness="1">
+                                                            <Image Grid.Column="1"
+                                                                   Source="{Binding Icon}"
+                                                                   Stretch="Uniform"
+                                                                   Width="70" Height="70"
+                                                                   HorizontalAlignment="Center"
+                                                                   VerticalAlignment="Center"/>
+                                                        </Border>
+                                                    </Grid>
+
+                                                    <!-- Name -->
+                                                    <StackPanel Grid.Row="1"
+                                                                Orientation="Horizontal"
+                                                                Spacing="6"
+                                                                HorizontalAlignment="Center"
+                                                                VerticalAlignment="Center"
+                                                                Margin="0,0,0,8">
+                                                        <TextBlock Text="{Binding Name}"
+                                                                   Foreground="{DynamicResource PrimaryForegroundBrush}"
+                                                                   FontWeight="SemiBold"
+                                                                   TextWrapping="Wrap"
+                                                                   TextAlignment="Center"
+                                                                   VerticalAlignment="Center"
+                                                                   MaxWidth="140"/>
+                                                    </StackPanel>
+                                                    <ItemsControl Grid.Row="2" ItemsSource="{Binding Rewards}">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <WrapPanel Orientation="Horizontal" HorizontalAlignment="Center"/>
+                                                            </ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate x:DataType="src:Reward">
+                                                                <Border Width="46" Height="46"
+                                                                        Background="#252525"
+                                                                        HorizontalAlignment="Center"
+                                                                        VerticalAlignment="Center"
+                                                                        CornerRadius="4"
+                                                                        Margin="4"
+                                                                        BorderThickness="1">
+                                                                    <Border.Styles>
+                                                                        <Style Selector="Border:pointerover">
+                                                                            <Setter Property="Background" Value="{DynamicResource AppBackgroundBrush}"/>
+                                                                            <Setter Property="BorderBrush" Value="Transparent"/>
+                                                                        </Style>
+                                                                    </Border.Styles>
+
+                                                                    <Border BorderThickness="1" BorderBrush="{Binding BorderColor}">
+                                                                        <Image Source="{Binding Icon}"
+                                                                               Stretch="Uniform"
+                                                                               Width="40" Height="40"
+                                                                               HorizontalAlignment="Center"
+                                                                               VerticalAlignment="Center"
+                                                                               ToolTip.Tip="{Binding Name}"/>
+                                                                    </Border>
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                        </ItemsControl>
+                                                    </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsRepeater.ItemTemplate>
+                                </ItemsRepeater>
+                            </ScrollViewer>
+                        </Border>
+                        </Grid>
                 </Border>
             </Grid>
 

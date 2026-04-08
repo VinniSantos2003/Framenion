@@ -19,6 +19,7 @@ namespace framenion
 			if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
 			{
 				desktop.MainWindow = new MainWindow();
+				AppData.MainWindow = desktop.MainWindow;
 				_ = LoadAndApplySettingsAsync();
 			}
 
@@ -34,23 +35,19 @@ namespace framenion
 
 		public void ToggleWindow()
 		{
-			if (Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop) {
-				var mw = desktop.MainWindow;
-				if (mw == null) return;
-				if (mw.IsVisible) {
-					mw.Hide();
-				} else {
-					mw.Show();
-					mw.WindowState = WindowState.Normal;
-				}
+			var mainWindow = AppData.MainWindow;
+			if (mainWindow == null) return;
+			if (mainWindow.IsVisible) {
+				mainWindow.Hide();
+			} else {
+				mainWindow.Show();
+				mainWindow.WindowState = WindowState.Normal;
 			}
 		}
 
 		public void Exit()
 		{
-			if (Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop) {
-				desktop.MainWindow?.Close();
-			}
+			AppData.MainWindow?.Close();
 		}
 	}
 }
