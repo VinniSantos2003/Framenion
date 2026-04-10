@@ -17,8 +17,8 @@
             <Grid ColumnDefinitions="Auto, *, Auto, Auto, Auto">
                 <!-- Menu Buttons -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
-                    <Button Name="ItemsButton" Content="Equipment" Classes="selected" Click="OnItemsClick" Padding="20,10"/>
-                    <Button Name="RelicsButton" Content="Relics" Click="OnRelicsClick" Padding="20,10"/>
+                    <Button Name="ItemsButton" Content="Equipment" Classes="selected" Click="OnItemsClick" Background="{DynamicResource SurfaceBackgroundBrush}" Padding="20,10"/>
+                    <Button Name="RelicsButton" Content="Relics" Click="OnRelicsClick" Padding="20,10" Background="{DynamicResource SurfaceBackgroundBrush}"/>
                 </StackPanel>
 
                 <!-- Player Info Panel -->
@@ -38,12 +38,12 @@
 
                         <StackPanel Orientation="Horizontal" Spacing="5">
                             <Image Source="avares://framenion/assets/credits.png" Width="24" Height="24" VerticalAlignment="Center"/>
-                            <TextBlock Name="CreditsText" Text="" VerticalAlignment="Center" Foreground="{DynamicResource MutedForegroundBrush}"/>
+                            <TextBlock Name="CreditsText" Text="" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryForegroundBrush}"/>
                         </StackPanel>
 
                         <StackPanel Orientation="Horizontal" Spacing="5">
                             <Image Source="avares://framenion/assets/platinum.png" Width="24" Height="24" VerticalAlignment="Center"/>
-                            <TextBlock Name="PlatinumText" VerticalAlignment="Center" Foreground="{DynamicResource MutedForegroundBrush}"/>
+                            <TextBlock Name="PlatinumText" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryForegroundBrush}"/>
                         </StackPanel>
 
                         <Button Content="⚙" Click="OnOpenSettingsClick" Classes="iconButton" ToolTip.Tip="Settings"/>
@@ -166,7 +166,8 @@
 
                             <TextBox Grid.Column="4"
                                      Name="ItemsSearchBox"
-                                     Watermark="Search items..."
+                                     PlaceholderText="Search items"
+                                     VerticalAlignment="Center"
                                      Padding="8,8"
                                      TextChanged="OnSearchTextChanged"
                                      Background="{DynamicResource PanelBackgroundBrush}"
@@ -370,9 +371,10 @@
 
                             <TextBox Grid.Column="4"
                                      Name="RelicsSearchBox"
-                                     Watermark="Search relics..."
+                                     PlaceholderText="Search relics or rewards"
                                      Padding="8,8"
                                      TextChanged="OnSearchRelicsTextChanged"
+                                     VerticalAlignment="Center"
                                      Background="{DynamicResource PanelBackgroundBrush}"
                                      Foreground="{DynamicResource PrimaryForegroundBrush}"
                                      BorderBrush="{DynamicResource ControlBorderBrush}"
@@ -459,7 +461,7 @@
                                                         <ItemsControl.ItemTemplate>
                                                             <DataTemplate x:DataType="src:Reward">
                                                                 <Border Width="46" Height="46"
-                                                                        Background="#252525"
+                                                                        Background="{DynamicResource SecondaryBackgroundBrush}"
                                                                         HorizontalAlignment="Center"
                                                                         VerticalAlignment="Center"
                                                                         CornerRadius="4"

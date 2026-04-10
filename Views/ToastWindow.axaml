@@ -5,12 +5,12 @@
         x:DataType="local:ToastWindow"
         Width="360"
         Height="96"
-        SystemDecorations="None"
+        WindowDecorations="None"
         CanResize="False"
         ShowInTaskbar="False"
         Topmost="True"
         ShowActivated="False"
-        Background="#1f1f1f">
+        Background="{DynamicResource ToastBackgroundBrush}">
     <Border Padding="12">
         <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
             <Image Grid.Column="0" Grid.RowSpan="2" Name="IconImage"

@@ -5,7 +5,7 @@
         xmlns:local="clr-namespace:framenion"
         x:Class="framenion.RelicRewardWindow"
         x:DataType="local:RelicRewardWindow"
-        SystemDecorations="None"
+        WindowDecorations="None"
         CanResize="False"
         ShowInTaskbar="False"
         Topmost="True"
@@ -14,18 +14,18 @@
         Height="150">
     <Border Padding="12">
         <Grid RowDefinitions="*,Auto">
-            <TextBlock Name="NameItem" Text="{Binding ItemName}" FontSize="15" Foreground="White" HorizontalAlignment="Center" TextWrapping="Wrap"/>
+            <TextBlock Name="NameItem" Text="{Binding ItemName}" FontSize="15" Foreground="{DynamicResource PrimaryForegroundBrush}" HorizontalAlignment="Center" TextWrapping="Wrap"/>
             
             <StackPanel VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="10,10,10,10">
             <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" ColumnSpacing="15">
             <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="5">
                 <Image Source="avares://framenion/assets/platinum.png" Width="24" Height="24" VerticalAlignment="Center"/>
-                <TextBlock Name="PlatinumValue" Text="{Binding Price}" Foreground="{DynamicResource MutedForegroundBrush}" VerticalAlignment="Center"/>
+                <TextBlock Name="PlatinumValue" Text="{Binding Price}" Foreground="{DynamicResource PrimaryForegroundBrush}" VerticalAlignment="Center"/>
             </StackPanel>
 
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="5">
                 <Image Source="avares://framenion/assets/ducats.png" Width="24" Height="24" VerticalAlignment="Center"/>
-                <TextBlock Name="DucatValue" Text="{Binding Ducats}" VerticalAlignment="Center" Foreground="{DynamicResource MutedForegroundBrush}"/>
+                <TextBlock Name="DucatValue" Text="{Binding Ducats}" VerticalAlignment="Center" Foreground="{DynamicResource PrimaryForegroundBrush}"/>
             </StackPanel>
             </Grid>
                 </StackPanel>

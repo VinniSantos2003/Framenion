@@ -12,19 +12,21 @@
         <SolidColorBrush x:Key="AppBackgroundBrush" Color="#1A1A1A"/>
         <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#2C2C2C"/>
         <SolidColorBrush x:Key="SurfaceBackgroundBrush" Color="#1E1E1E"/>
+        <SolidColorBrush x:Key="SecondaryBackgroundBrush" Color="#252525"/>
+        <SolidColorBrush x:Key="ToastBackgroundBrush" Color="#252525"/>
 
         <SolidColorBrush x:Key="ControlBorderBrush" Color="#4A4A4A"/>
         <SolidColorBrush x:Key="SeparatorBorderBrush" Color="#3A3A3A"/>
 
         <SolidColorBrush x:Key="ButtonBackgroundBrush" Color="#2C2C2C"/>
-        <SolidColorBrush x:Key="ButtonForegroundBrush" Color="#888888"/>
+        <SolidColorBrush x:Key="ButtonForegroundBrush" Color="White"/>
         <SolidColorBrush x:Key="ButtonHoverBackgroundBrush" Color="#3A3A3A"/>
         <SolidColorBrush x:Key="ButtonHoverForegroundBrush" Color="#CCCCCC"/>
 
         <SolidColorBrush x:Key="AccentBrush" Color="#4A9EFF"/>
-        <SolidColorBrush x:Key="MutedForegroundBrush" Color="#B4B4BE"/>
-        <SolidColorBrush x:Key="SecondaryForegroundBrush" Color="#888888"/>
-        <SolidColorBrush x:Key="PrimaryForegroundBrush" Color="#FFFFFF"/>
+
+        <SolidColorBrush x:Key="PrimaryForegroundBrush" Color="White"/>
+        <SolidColorBrush x:Key="SecondaryForegroundBrush" Color="#D0D0D0"/>
         <Color x:Key="RewardWindowBackgroundColor">#CC1E1E1E</Color> <!-- 80% opacity -->
         <SolidColorBrush x:Key="RewardWindowBackgroundBrush" Color="{DynamicResource RewardWindowBackgroundColor}" />
     </Application.Resources>

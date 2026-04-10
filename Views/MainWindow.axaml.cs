@@ -129,12 +129,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 		AppData.Monitor?.Dispose();
 		if (Application.Current is { } app) {
 			var icons = TrayIcon.GetIcons(app);
-			if (icons == null) {
-				return;
-			}
+			if (icons != null) {
+				foreach (var icon in icons) {
+					(icon as IDisposable)?.Dispose();
+				}
 
-			foreach (var icon in icons) {
-				(icon as IDisposable)?.Dispose();
+				icons.Clear();
 			}
 		}
 	}

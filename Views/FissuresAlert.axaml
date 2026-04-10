@@ -8,17 +8,17 @@
         MaxWidth="750"
         SizeToContent="Height"
         Title="Fissures Alert List"
-        Background="{DynamicResource PanelBackgroundBrush}">
+        Background="{DynamicResource AppBackgroundBrush}">
 
   <StackPanel Margin="12" Orientation="Vertical" Spacing="8">
     <StackPanel Orientation="Horizontal" Spacing="8">
     </StackPanel>
 
     <Grid RowDefinitions="Auto, Auto"
-          Background="{DynamicResource SurfaceBackgroundBrush}" RowSpacing="5">
+          Background="{DynamicResource PanelBackgroundBrush}" RowSpacing="5">
       <ListBox Grid.Row="0"
                Name="FiltersList"
-               Background="{DynamicResource SurfaceBackgroundBrush}"
+               Background="{DynamicResource PanelBackgroundBrush}"
                ItemsSource="{Binding Filters}">
         <ListBox.ItemTemplate>
           <DataTemplate x:DataType="src:FissureAlertEntry">
@@ -56,6 +56,8 @@
                         VerticalContentAlignment="Center"/>
 
               <Button Grid.Column="4"
+                      BorderThickness="0"
+                      Background="Transparent"
                       Content="❌"
                       Click="OnRemoveEntryClick"
                       HorizontalAlignment="Right"
@@ -67,7 +69,7 @@
         </ListBox.ItemTemplate>
       </ListBox>
 
-      <Button Grid.Row="1" Name="AddButton" Content="Add New" Click="OnAddEntryClick" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+      <Button Grid.Row="1" Name="AddButton" FontSize="25" Content="+" Click="OnAddEntryClick" HorizontalAlignment="Center" Background="Transparent" BorderThickness="0" Margin="0,0,0,10"/>
     </Grid>
 
     <Button Name="SaveButton" Content="Save" Click="Save_Click" HorizontalAlignment="Center"/>

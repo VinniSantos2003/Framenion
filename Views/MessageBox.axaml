@@ -3,14 +3,13 @@
         x:Class="framenion.MessageBox"
         xmlns:local="clr-namespace:framenion"
         x:DataType="local:MessageBox"
-        SizeToContent="WidthAndHeight"
         WindowStartupLocation="CenterOwner"
         MinWidth="200"
         MaxWidth="400"
         CanResize="False"
-        Background="{DynamicResource SurfaceBackgroundBrush}">
+        Background="{DynamicResource AppBackgroundBrush}">
 
-    <Grid Background="{DynamicResource AppBackgroundBrush}">
+    <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>

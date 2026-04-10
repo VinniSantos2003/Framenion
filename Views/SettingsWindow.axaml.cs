@@ -21,11 +21,7 @@ public partial class SettingsWindow : Window
 	private async Task LoadAsync()
 	{
 		settings = await AppSettings.LoadAsync();
-		AppBackgroundBox.Text = settings.AppBackground;
-		PanelBackgroundBox.Text = settings.PanelBackground;
-		ButtonBackgroundBox.Text = settings.ButtonBackground;
-		ButtonForegroundBox.Text = settings.ButtonForeground;
-		ButtonSelected.Text = settings.ButtonSelected;
+		AccentColorBox.Text = settings.AccentColor;
 		EnableNotificationsCheckBox.IsChecked = settings.EnableNotifications;
 		EnableEELogReadBox.IsChecked = settings.EnableEELogRead;
 		EnableRelicOverlayBox.IsChecked = settings.EnableRelicOverlay;
@@ -36,11 +32,7 @@ public partial class SettingsWindow : Window
 
 	private async void SaveApply_Click(object? sender, RoutedEventArgs e)
 	{
-		settings.AppBackground = AppBackgroundBox.Text?.Trim() ?? settings.AppBackground;
-		settings.PanelBackground = PanelBackgroundBox.Text?.Trim() ?? settings.PanelBackground;
-		settings.ButtonBackground = ButtonBackgroundBox.Text?.Trim() ?? settings.ButtonBackground;
-		settings.ButtonForeground = ButtonForegroundBox.Text?.Trim() ?? settings.ButtonForeground;
-		settings.ButtonSelected = ButtonSelected.Text?.Trim() ?? settings.ButtonSelected;
+		settings.AccentColor = AccentColorBox.Text?.Trim() ?? settings.AccentColor;
 		settings.EnableNotifications = EnableNotificationsCheckBox.IsChecked ?? true;
 		settings.EnableEELogRead = EnableEELogReadBox.IsChecked ?? true;
 		settings.EnableRelicOverlay = EnableRelicOverlayBox.IsChecked ?? true;

@@ -8,11 +8,7 @@ namespace framenion.Src;
 
 public sealed class AppSettings
 {
-	public string AppBackground { get; set; } = "#1A1A1A";
-	public string PanelBackground { get; set; } = "#2C2C2C";
-	public string ButtonBackground { get; set; } = "#2C2C2C";
-	public string ButtonForeground { get; set; } = "#FFFFFF";
-	public string ButtonSelected { get; set; } = "#4A9EFF";
+	public string AccentColor { get; set; } = "#4A9EFF";
 	public bool EnableNotifications { get; set; } = true;
 	public bool EnableEELogRead { get; set;  } = true;
 	public bool EnableRelicOverlay { get; set; } = true;
@@ -35,11 +31,7 @@ public sealed class AppSettings
 			if (doc.RootElement.ValueKind != JsonValueKind.Object) return settings;
 
 			var root = doc.RootElement;
-			settings.AppBackground = ReadString(root, "appBackground", settings.AppBackground);
-			settings.PanelBackground = ReadString(root, "panelBackground", settings.PanelBackground);
-			settings.ButtonBackground = ReadString(root, "buttonBackground", settings.ButtonBackground);
-			settings.ButtonForeground = ReadString(root, "buttonForeground", settings.ButtonForeground);
-			settings.ButtonSelected = ReadString(root, "buttonSelected", settings.ButtonSelected);
+			settings.AccentColor = ReadString(root, "accentColor", settings.AccentColor);
 			settings.EnableNotifications = ReadBool(root, "enableNotifications", settings.EnableNotifications);
 			settings.EnableEELogRead = ReadBool(root, "enableEELogRead", settings.EnableEELogRead);
 			settings.EnableRelicOverlay = ReadBool(root, "enableRelicOverlay", settings.EnableRelicOverlay);
@@ -61,11 +53,8 @@ public sealed class AppSettings
 		await using var writer = new Utf8JsonWriter(fs, options);
 
 		writer.WriteStartObject();
-		writer.WriteString("appBackground", AppBackground ?? string.Empty);
-		writer.WriteString("panelBackground", PanelBackground ?? string.Empty);
-		writer.WriteString("buttonBackground", ButtonBackground ?? string.Empty);
-		writer.WriteString("buttonForeground", ButtonForeground ?? string.Empty);
-		writer.WriteString("buttonSelected", ButtonSelected ?? string.Empty);
+		var accent = string.IsNullOrWhiteSpace(AccentColor) ? "#4A9EFF" : AccentColor;
+		writer.WriteString("accentColor", accent);
 		writer.WriteBoolean("enableNotifications", EnableNotifications);
 		writer.WriteBoolean("enableEELogRead", EnableEELogRead);
 		writer.WriteBoolean("enableRelicOverlay", EnableRelicOverlay);
@@ -81,11 +70,7 @@ public sealed class AppSettings
 	{
 		if (Application.Current is null) return;
 
-		SetBrush("AppBackgroundBrush", AppBackground);
-		SetBrush("PanelBackgroundBrush", PanelBackground);
-		SetBrush("ButtonBackgroundBrush", ButtonBackground);
-		SetBrush("ButtonForegroundBrush", ButtonForeground);
-		SetBrush("AccentBrush", ButtonSelected);
+		SetBrush("AccentBrush", string.IsNullOrWhiteSpace(AccentColor) ? "#4A9EFF" : AccentColor);
 	}
 
 	private static void SetBrush(string key, string color)
