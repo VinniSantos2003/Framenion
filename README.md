@@ -10,23 +10,20 @@ Framenion is a fast, lightweight Warframe companion desktop app built with Avalo
   - Mastery status highlighting
   - Ingredient ownership checks
   - Craftability hints when ingredient requirements are met
+  - Item ducat and platinum values from live Warframe Market data
 - Void Fissure panel with:
   - Normal / Steel Path filtering
   - Tier, mission type, faction, location, and countdown
   - Auto-refresh and live timer updates
   - Desktop toast notifications for user selected opened fissures
 - In-app inventory refresh flow using [warframe-api-helper](https://github.com/Sainan/warframe-api-helper) (download prompted on first use)
-- Relic rewards overlay showing item details (ducat value and market price) when opening relics in-game.
+- Relic rewards overlay showing ducat value, market price and set items of the parent item when opening relics in-game.
 
 ## Installation
 
 Download the latest release from the [Releases](https://github.com/omeranha/Framenion/releases), extract the contents and run the executable.
 
 ## To-do
-
-- [ ] Warframe Market integration: Add live price data (buy/sell)
-
-- [ ] Relic viewer: Add a dedicated relic browser with drop tables, rarity tiers, and quick search/filter by relic era and reward.
 
 - [ ] Ensure cross-platform compatibility for Windows and Linux.
 
